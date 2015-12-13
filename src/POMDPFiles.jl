@@ -1,17 +1,15 @@
 module POMDPFiles
 
+using Reexport
 using POMDPs
-using POMDPXFile
+@reexport using POMDPXFile
 
 import POMDPs: action, value
 
 export
 	POMDPFile,
-	Alphas,
 
-	action,
-	value,
-	read_alphas
+	read_alpha
 
 include("read.jl")
 include("write.jl")
