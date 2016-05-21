@@ -2,7 +2,7 @@ module POMDPFiles
 
 using Reexport
 using POMDPs
-@reexport using POMDPXFiles
+@reexport using POMDPXFiles # for POMDPAlphas
 
 import POMDPs: action, value
 
