@@ -48,9 +48,9 @@ function Base.write(io::IO, pomdp::POMDP)
 
 	T = create_transition_distribution(pomdp)
 	sspace = states(pomdp)
-	pomdp_states = domain(sspace)
+	pomdp_states = iterator(sspace)
 	aspace = actions(pomdp)
-	pomdp_actions = domain(aspace)
+	pomdp_actions = iterator(aspace)
 
 	for (action_index, a) in enumerate(pomdp_actions)
 		println(io, "T:", action_index-1)
@@ -82,7 +82,7 @@ function Base.write(io::IO, pomdp::POMDP)
 
 	O = create_observation_distribution(pomdp)
 	ospace = observations(pomdp)
-	pomdp_observations = domain(ospace)
+	pomdp_observations = iterator(ospace)
 
 	for (action_index, a) in enumerate(pomdp_actions)
 		println(io, "O:", action_index-1)
