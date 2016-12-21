@@ -46,10 +46,8 @@ function Base.write(io::IO, pomdp::POMDP)
 	# each row corresponds to one of the start states and
 	# each column specifies one of the ending states
 
-	sspace = states(pomdp)
-	pomdp_states = iterator(sspace)
-	aspace = actions(pomdp)
-	pomdp_actions = iterator(aspace)
+    pomdp_states = ordered_states(pomdp)
+    pomdp_actions = ordered_actions(pomdp)
 
 	for (action_index, a) in enumerate(pomdp_actions)
 		println(io, "T:", action_index-1)
@@ -79,8 +77,7 @@ function Base.write(io::IO, pomdp::POMDP)
 	# each row corresponds to one of the states and
 	# each column specifies one of the observations
 
-	ospace = observations(pomdp)
-	pomdp_observations = iterator(ospace)
+    pomdp_observations = ordered_observations(pomdp)
 
 	for (action_index, a) in enumerate(pomdp_actions)
 		println(io, "O:", action_index-1)
