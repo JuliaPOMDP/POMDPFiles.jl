@@ -46,7 +46,6 @@ function Base.write(io::IO, pomdp::POMDP)
 	# each row corresponds to one of the start states and
 	# each column specifies one of the ending states
 
-	T = create_transition_distribution(pomdp)
 	sspace = states(pomdp)
 	pomdp_states = iterator(sspace)
 	aspace = actions(pomdp)
@@ -55,7 +54,7 @@ function Base.write(io::IO, pomdp::POMDP)
 	for (action_index, a) in enumerate(pomdp_actions)
 		println(io, "T:", action_index-1)
 		for s in pomdp_states
-			T = transition(pomdp, s, a, T)
+			T = transition(pomdp, s, a)
 			for (end_state_index, s2) in enumerate(pomdp_states)
 				print(io, pdf(T, s2))
 				if end_state_index != length(pomdp_states)
@@ -80,14 +79,13 @@ function Base.write(io::IO, pomdp::POMDP)
 	# each row corresponds to one of the states and
 	# each column specifies one of the observations
 
-	O = create_observation_distribution(pomdp)
 	ospace = observations(pomdp)
 	pomdp_observations = iterator(ospace)
 
 	for (action_index, a) in enumerate(pomdp_actions)
 		println(io, "O:", action_index-1)
 		for (state_index, s) in enumerate(pomdp_states)
-			O = observation(pomdp, a, s, O)
+			O = observation(pomdp, a, s)
 			for (obs_index, o) in enumerate(pomdp_observations)
 				print(io, pdf(O, o))
 				if obs_index != length(pomdp_observations)
