@@ -63,13 +63,13 @@ function read_alpha(filename::AbstractString)
 
 	# Initialize the Γ matrix.
 	# The α-vectors are the columns
-    alpha_vectors = Array(Float64, vector_length, num_alpha_vectors)
+    alpha_vectors = Array{Float64}(vector_length, num_alpha_vectors)
 
     # Initialize the alpha_actions vector
     # alpha_actions[i] is the index of the action associated with
     # the alpha-vector in the ith column of alpha_vectors
     # Note that these are 0-indexed
-    alpha_actions = Array(Int, num_alpha_vectors)
+    alpha_actions = Array{Int}(num_alpha_vectors)
 
     for (i,line_index) in enumerate(alpha_vector_line_indeces)
     	alpha_actions[i] = parse(Int, lines[line_index-1])
