@@ -2,7 +2,8 @@ module POMDPFiles
 
 using Reexport
 using POMDPs
-using POMDPToolbox
+using POMDPModelTools
+using Printf
 @reexport using POMDPXFiles # for POMDPAlphas
 
 import POMDPs: action, value
