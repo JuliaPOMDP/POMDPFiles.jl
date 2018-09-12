@@ -1,6 +1,6 @@
 using POMDPFiles
 using POMDPModels
-using Base.Test
+using Test
 
 pomdp = TigerPOMDP()
-write(STDOUT, pomdp)
+write(stdout, pomdp)
