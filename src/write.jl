@@ -28,11 +28,14 @@ Specification: http://cs.brown.edu/research/ai/pomdp/examples/pomdp-file-spec.ht
 """
 function Base.write(io::IO, pomdp::POMDP)
 
+    ss = states(pomdp)
+    as = actions(pomdp)
+    os = observations(pomdp)
 	println(io, "discount: ", discount(pomdp))
 	println(io, "values: reward") # NOTE(tim): POMDPs.jl assumes rewards rather than costs
-	println(io, "states: ", n_states(pomdp))
-	println(io, "actions: ", n_actions(pomdp))
-	println(io, "observations: ", n_observations(pomdp), "\n")
+    println(io, "states: ", length(ss))
+    println(io, "actions: ", length(as))
+    println(io, "observations: ", length(os), "\n")
 	
 	# --------------------------------------------------------------------------
 	# TRANSITION
@@ -98,18 +101,19 @@ function Base.write(io::IO, pomdp::POMDP)
 	# --------------------------------------------------------------------------
 	# REWARD
 	#
-	# POMDPs.jl assumes R(s,a) rather than R(s,a,s2,o) supported by .pomdp
-	# For efficiency, we use the wildcard notation:
-	#
 	# R: <action> : <start-state> : <end-state> : <observation> %f
 	# where * is used for <end-state> and <observation> to indicate a wildcard
 	# that is expanded to all existing entities
 
 	for (action_index, a) in enumerate(pomdp_actions)
 		for (start_state_index, s) in enumerate(pomdp_states)
-			r = reward(pomdp, s, a)
-			println(io, "R:", action_index-1, ":", start_state_index-1,
-			            ":*:* ", r)
+            for (end_state_index, sp) in enumerate(pomdp_states)
+                for (obs_index, o) in enumerate(pomdp_observations)
+                    r = reward(pomdp, s, a, sp, o)
+                    println(io, "R:", action_index-1, ":", start_state_index-1,
+                            ":", end_state_index, ":", obs_index, " ", r)
+                end
+            end
 		end
 	end
 end
