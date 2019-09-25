@@ -111,7 +111,7 @@ function Base.write(io::IO, pomdp::POMDP)
                 for (obs_index, o) in enumerate(pomdp_observations)
                     r = reward(pomdp, s, a, sp, o)
                     println(io, "R:", action_index-1, ":", start_state_index-1,
-                            ":", end_state_index, ":", obs_index, " ", r)
+                            ":", end_state_index-1, ":", obs_index-1, " ", r)
                 end
             end
 		end
