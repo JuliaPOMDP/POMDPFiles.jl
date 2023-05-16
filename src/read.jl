@@ -1,3 +1,5 @@
+using POMDPModels: TabularPOMDP
+
 const REGEX_FLOATING_POINT = r"[-+]?[0-9]*\.?[0-9]+"
 
 """
@@ -81,4 +83,52 @@ function read_alpha(filename::AbstractString)
     end
 
     return alpha_vectors, alpha_actions
+end
+
+function read_pomdp(filename::AbstractString)
+
+    @assert isfile(filename) "filename $(filename) does not exist"
+
+    lines = readlines(open(filename))
+
+    alpha_vector_line_indeces = Int[]
+    vector_length = -1
+    discount = (collect((parse(Float64, m.match) for m = eachmatch(REGEX_FLOATING_POINT, lines[1]))))[1]
+    states = (collect((parse(Int64, m.match) for m = eachmatch(REGEX_FLOATING_POINT, lines[3]))))[1]
+    actions = (collect((parse(Int64, m.match) for m = eachmatch(REGEX_FLOATING_POINT, lines[4]))))[1]
+    observations = (collect((parse(Int64, m.match) for m = eachmatch(REGEX_FLOATING_POINT, lines[5]))))[1]
+
+    l = 6
+
+    T = zeros(states, actions, states)
+    O = zeros(observations, actions, states)
+    R = zeros(states, actions)
+
+    for i in 1:actions
+        l += 2
+        for j in 1:states
+            T[j,i,:] = collect((parse(Float64, m.match) for m = eachmatch(REGEX_FLOATING_POINT, lines[l])))
+            l += 1
+        end
+    end
+
+    for i in 1:actions
+        l += 2
+        for j in 1:observations
+            O[j,i,:] = collect((parse(Float64, m.match) for m = eachmatch(REGEX_FLOATING_POINT, lines[l])))
+            l += 1
+        end
+    end
+
+    l += 1
+    for i in 1:actions
+        for j in 1:states
+            R[j,i] = (collect((parse(Float64, m.match) for m = eachmatch(REGEX_FLOATING_POINT, lines[l]))))[5]
+            l += (states*observations)
+        end
+    end
+
+    m = TabularPOMDP(T, R, O, discount)
+    return m
+    
 end
