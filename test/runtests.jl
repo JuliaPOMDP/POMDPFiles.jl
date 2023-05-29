@@ -3,5 +3,6 @@ using POMDPModels
 using Test
 
 pomdp = TigerPOMDP()
-# write("new.pomdp", pomdp)
-m = read_pomdp("new1.pomdp")
+write(stdout, pomdp)
+m1 = read_pomdp("1d.pomdp")
+m2 = read_pomdp("parr95.95.pomdp")
