@@ -110,10 +110,10 @@ function read_pomdp(filename::AbstractString)
     R_lines = Vector{Int64}()
 
     for i in 1:length(lines)
-        if occursin(r"discount:", lines[i])
+        if occursin(r"discount:", lines[i]) && !occursin(r"#", lines[i])
             discount = parse(Float64, match(REGEX_FLOATING_POINT, lines[i]).match)
         end
-        if occursin(r"states:", lines[i])
+        if occursin(r"states:", lines[i]) && !occursin(r"#", lines[i])
             states = split(strip(lines[i]), ' ')
             if length(states) > 2
                 num_states = length(states) - 1
@@ -123,7 +123,7 @@ function read_pomdp(filename::AbstractString)
                 states = collect(string(i) for i in 0:num_states-1)
             end
         end
-        if occursin(r"actions:", lines[i])
+        if occursin(r"actions:", lines[i]) && !occursin(r"#", lines[i])
             actions = split(strip(lines[i]), ' ')
             if length(actions) > 2
                 num_actions = length(actions) - 1
@@ -133,8 +133,9 @@ function read_pomdp(filename::AbstractString)
                 actions = collect(string(i) for i in 0:num_actions-1)
             end
         end
-        if occursin(r"observations:", lines[i])
+        if occursin(r"observations:", lines[i]) && !occursin(r"#", lines[i])
             observations = split(strip(lines[i]), ' ')
+            println(observations)
             if length(observations) > 2
                 num_observations = length(observations) - 1
                 observations = observations[2:end]
@@ -143,13 +144,13 @@ function read_pomdp(filename::AbstractString)
                 observations = collect(string(i) for i in 0:num_observations-1)
             end
         end
-        if occursin(r"T:", lines[i])
+        if occursin(r"T:", lines[i]) || occursin(r"T :", lines[i])
             push!(T_lines, i)
         end
-        if occursin(r"O:", lines[i])
+        if occursin(r"O:", lines[i]) || occursin(r"O :", lines[i])
             push!(O_lines, i)
         end
-        if occursin(r"R:", lines[i])
+        if occursin(r"R:", lines[i]) || occursin(r"R :", lines[i])
             push!(R_lines, i)
         end
     end
@@ -168,8 +169,10 @@ function read_pomdp(filename::AbstractString)
     ind3 = 0
 
     # if length(T_lines) > num_actions
-    if length(T_lines) > 0    
+    if length(T_lines) > 0   
+        println("yo") 
         if length(findall(x->x==':', lines[T_lines[1]])) == 3
+            println("yup")
             for t in T_lines
                 # line = collect((parse(Float64, m.match) for m = eachmatch(REGEX_FLOATING_POINT, lines[t])))
                 # ind = collect(floor(Int64, i) for i in line)
@@ -178,6 +181,7 @@ function read_pomdp(filename::AbstractString)
                 line = split(l, ' ')
                 # line = split(lines[t], ':')
                 line = collect(strip(i) for i in line)
+                println(line)
                 deleteat!(line, findall(x->x=="", line))
                 # stars = findall(x->x=="*", line)
                 # replace(line, "*"=>all_indices)
@@ -199,22 +203,25 @@ function read_pomdp(filename::AbstractString)
                 T[ind1, ind2, ind3] .= parse(Float64, line[5])
             end
         elseif length(findall(x->x==':', lines[T_lines[1]])) == 2
+            println("q1")
             for t in T_lines
                 l = t+1
                 act = strip(split(lines[t], ':')[2])
+                st = strip(split(lines[t], ':')[3])
                 i = findfirst(x->x==act, actions)
-                for j in 1:num_states
-                    T[j,i,:] = collect((parse(Float64, m.match) for m = eachmatch(REGEX_FLOATING_POINT, lines[l])))
-                    l += 1
-                end
+                j = findfirst(x->x==st, states)
+                T[j,i,:] = collect((parse(Float64, m.match) for m = eachmatch(REGEX_FLOATING_POINT, lines[l])))
             end
         else
+            println("q2")
             for t in T_lines
                 l = t+1
                 id = findall(strip(lines[l]), "identity")
                 un = findall(strip(lines[l]), "uniform")
                 act = strip(split(lines[t], ':')[2])
+                println("hey1")
                 i = findfirst(x->x==act, actions)
+                println("hey")
                 if length(id) > 0
                     for j in 1:num_states
                         T[j,i,j] = 1
@@ -266,30 +273,47 @@ function read_pomdp(filename::AbstractString)
                 O[ind1, ind2, ind3] .= parse(Float64, line[5])
             end
         elseif length(findall(x->x==':', lines[O_lines[1]])) == 2
-            for t in O_lines
+            for t in T_lines
                 l = t+1
                 act = strip(split(lines[t], ':')[2])
+                st = strip(split(lines[t], ':')[3])
                 i = findfirst(x->x==act, actions)
-                for j in 1:num_observations
-                    O[j,i,:] = collect((parse(Float64, m.match) for m = eachmatch(REGEX_FLOATING_POINT, lines[l])))
-                    l += 1
-                end
+                j = findfirst(x->x==st, states)
+                O[:,i,j] = collect((parse(Float64, m.match) for m = eachmatch(REGEX_FLOATING_POINT, lines[l])))
             end
         else
             for t in O_lines
                 l = t+1
                 un = findall(strip(lines[l]), "uniform")
                 act = strip(split(lines[t], ':')[2])
-                i = findfirst(x->x==act, actions)
-                if length(un) > 0
-                    for j in 1:num_states
-                        O[:,i,j] = ones(num_observations)./num_observations
-                        l += 1
+                if act == "*"
+                    if length(un) > 0
+                        for j in 1:num_states
+                            for i in 1:num_actions
+                                O[:,i,j] = ones(num_observations)./num_observations
+                            end
+                            l += 1
+                        end
+                    else
+                        for j in 1:num_states
+                            for i in 1:num_actions
+                                O[:,i,j] = collect((parse(Float64, m.match) for m = eachmatch(REGEX_FLOATING_POINT, lines[l])))
+                            end
+                            l += 1
+                        end
                     end
                 else
-                    for j in 1:num_states
-                        O[:,i,j] = collect((parse(Float64, m.match) for m = eachmatch(REGEX_FLOATING_POINT, lines[l])))
-                        l += 1
+                    i = findfirst(x->x==act, actions)
+                    if length(un) > 0
+                        for j in 1:num_states
+                            O[:,i,j] = ones(num_observations)./num_observations
+                            l += 1
+                        end
+                    else
+                        for j in 1:num_states
+                            O[:,i,j] = collect((parse(Float64, m.match) for m = eachmatch(REGEX_FLOATING_POINT, lines[l])))
+                            l += 1
+                        end
                     end
                 end
             end
@@ -401,10 +425,13 @@ function read_pomdp(filename::AbstractString)
     #         l += (states*observations)
     #     end
     # end
-    println(T[:,:,1])
-    println(T[:,:,2])
-    println(O[:,:,1])
-    println(O[:,:,2])
+    println(T[:,1,:])
+    println(T[:,2,:])
+    println(O[:,1,:])
+    println(O[:,3,:])
+    println(O[:,4,:])
+    # println(T)
+    # println(O)
     println(R)
 
     m = TabularPOMDP(T, R, O, discount)
