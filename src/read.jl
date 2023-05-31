@@ -87,9 +87,7 @@ end
 
 function read_pomdp(filename::AbstractString)
 
-    @assert isfile(filename) "filename $(filename) does not exist"
-
-    lines = readlines(open(filename))
+    lines = open(readlines, filename)
 
     alpha_vector_line_indeces = Int[]
     vector_length = -1
@@ -110,47 +108,49 @@ function read_pomdp(filename::AbstractString)
     R_lines = Vector{Int64}()
 
     for i in 1:length(lines)
-        if occursin(r"discount:", lines[i]) && !occursin(r"#", lines[i])
-            discount = parse(Float64, match(REGEX_FLOATING_POINT, lines[i]).match)
-        end
-        if occursin(r"states:", lines[i]) && !occursin(r"#", lines[i])
-            states = split(strip(lines[i]), ' ')
-            if length(states) > 2
-                num_states = length(states) - 1
-                states = states[2:end]
-            else
-                num_states = parse(Int64, states[2])
-                states = collect(string(i) for i in 0:num_states-1)
+        if length(lines[i]) > 0
+            if occursin(r"discount:", lines[i]) && lines[i][1] != '#'
+                discount = parse(Float64, match(REGEX_FLOATING_POINT, lines[i]).match)
             end
-        end
-        if occursin(r"actions:", lines[i]) && !occursin(r"#", lines[i])
-            actions = split(strip(lines[i]), ' ')
-            if length(actions) > 2
-                num_actions = length(actions) - 1
-                actions = actions[2:end]
-            else
-                num_actions = parse(Int64, actions[2])
-                actions = collect(string(i) for i in 0:num_actions-1)
+            if occursin(r"states:", lines[i]) && lines[i][1] != '#'
+                states = split(strip(lines[i]), ' ')
+                if length(states) > 2
+                    num_states = length(states) - 1
+                    states = states[2:end]
+                else
+                    num_states = parse(Int64, states[2])
+                    states = collect(string(i) for i in 0:num_states-1)
+                end
             end
-        end
-        if occursin(r"observations:", lines[i]) && !occursin(r"#", lines[i])
-            observations = split(strip(lines[i]), ' ')
-            if length(observations) > 2
-                num_observations = length(observations) - 1
-                observations = observations[2:end]
-            else
-                num_observations = parse(Int64, observations[2])
-                observations = collect(string(i) for i in 0:num_observations-1)
+            if occursin(r"actions:", lines[i]) && lines[i][1] != '#'
+                actions = split(strip(lines[i]), ' ')
+                if length(actions) > 2
+                    num_actions = length(actions) - 1
+                    actions = actions[2:end]
+                else
+                    num_actions = parse(Int64, actions[2])
+                    actions = collect(string(i) for i in 0:num_actions-1)
+                end
             end
-        end
-        if occursin(r"T:", lines[i]) || occursin(r"T :", lines[i])
-            push!(T_lines, i)
-        end
-        if occursin(r"O:", lines[i]) || occursin(r"O :", lines[i])
-            push!(O_lines, i)
-        end
-        if occursin(r"R:", lines[i]) || occursin(r"R :", lines[i])
-            push!(R_lines, i)
+            if occursin(r"observations:", lines[i]) && lines[i][1] != '#'
+                observations = split(strip(lines[i]), ' ')
+                if length(observations) > 2
+                    num_observations = length(observations) - 1
+                    observations = observations[2:end]
+                else
+                    num_observations = parse(Int64, observations[2])
+                    observations = collect(string(i) for i in 0:num_observations-1)
+                end
+            end
+            if occursin(r"T:|T :", lines[i])
+                push!(T_lines, i)
+            end
+            if occursin(r"O:|O :", lines[i])
+                push!(O_lines, i)
+            end
+            if occursin(r"R:|R :", lines[i])
+                push!(R_lines, i)
+            end
         end
     end
 
