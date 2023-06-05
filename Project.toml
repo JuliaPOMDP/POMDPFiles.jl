@@ -19,9 +19,10 @@ Reexport = "0.2, 1"
 julia = "1"
 
 [extras]
-POMDPModels = "355abbd5-f08e-5560-ac9e-8b5f2592a0ca"
-Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 Downloads = "f43a241f-c20a-4ad4-852c-f6b1247861c6"
+POMDPModels = "355abbd5-f08e-5560-ac9e-8b5f2592a0ca"
+POMDPTools = "7588e00f-9cae-40de-98dc-e0c70c48cdd7"
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [targets]
-test = ["POMDPModels", "Downloads", "Test"]
+test = ["POMDPModels", "POMDPTools", "Downloads", "Test"]

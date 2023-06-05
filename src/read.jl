@@ -107,6 +107,10 @@ function read_pomdp(filename::AbstractString)
     O_lines = Vector{Int64}()
     R_lines = Vector{Int64}()
 
+    lines = map(lines) do line
+        line[1:something(findfirst('#', line), length(line))]
+    end
+
     for i in 1:length(lines)
         if length(lines[i]) > 0
             if occursin(r"discount:", lines[i]) && lines[i][1] != '#'
@@ -184,7 +188,7 @@ function read_pomdp(filename::AbstractString)
                 else
                     ind3 = findall(x->x==line[4], states)
                 end
-                T[ind1, ind2, ind3] .= parse(Float64, line[5])
+                T[ind3, ind2, ind1] .= parse(Float64, line[5])
             end
         elseif length(findall(x->x==':', lines[T_lines[1]])) == 2
             for t in T_lines
@@ -193,7 +197,7 @@ function read_pomdp(filename::AbstractString)
                 st = strip(split(lines[t], ':')[3])
                 i = findfirst(x->x==act, actions)
                 j = findfirst(x->x==st, states)
-                T[j,i,:] = collect((parse(Float64, m.match) for m = eachmatch(REGEX_FLOATING_POINT, lines[l])))
+                T[:,i,j] = collect((parse(Float64, m.match) for m = eachmatch(REGEX_FLOATING_POINT, lines[l])))
             end
         else
             for t in T_lines
@@ -209,12 +213,12 @@ function read_pomdp(filename::AbstractString)
                     end
                 elseif length(un) > 0
                     for j in 1:num_states
-                        T[j,i,:] = ones(num_states)./num_states
+                        T[:,i,j] = ones(num_states)./num_states
                         l += 1
                     end
                 else
                     for j in 1:num_states
-                        T[j,i,:] = collect((parse(Float64, m.match) for m = eachmatch(REGEX_FLOATING_POINT, lines[l])))
+                        T[:,i,j] = collect((parse(Float64, m.match) for m = eachmatch(REGEX_FLOATING_POINT, lines[l])))
                         l += 1
                     end
                 end
