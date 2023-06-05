@@ -26,17 +26,45 @@ end
 Write out a `.pomdp` file using the POMDPs.jl interface
 Specification: http://cs.brown.edu/research/ai/pomdp/examples/pomdp-file-spec.html
 """
-function Base.write(io::IO, pomdp::POMDP)
+function Base.write(io::IO, pomdp::POMDP; pretty = false)
 
     ss = states(pomdp)
     as = actions(pomdp)
     os = observations(pomdp)
 	println(io, "discount: ", discount(pomdp))
 	println(io, "values: reward") # NOTE(tim): POMDPs.jl assumes rewards rather than costs
-    println(io, "states: ", length(ss))
-    println(io, "actions: ", length(as))
-    println(io, "observations: ", length(os), "\n")
-	
+
+	n_states = length(ss)
+	if pretty && n_states < 20
+    	println(io, "states: ", join([string(s) for s=ss], " "))
+	else
+    	println(io, "states: ", length(ss))
+	end
+
+	n_actions = length(as)
+	if pretty && n_actions < 20
+    	println(io, "actions: ", join([string(a) for a=as], " "))
+	else
+    	println(io, "actions: ", length(as))
+	end
+
+	n_observations = length(os)
+	if pretty && n_observations < 20
+    	println(io, "observations: ", join([string(o) for o=os], " "))
+	else
+    	println(io, "observations: ", length(os))
+	end
+
+	println(io)
+
+	if pretty
+		pretty_print(io, pomdp)
+	else
+		normal_print(io, pomdp)
+	end
+end
+
+function normal_print(io::IO, pomdp::POMDP)
 	# --------------------------------------------------------------------------
 	# TRANSITION
 	#
@@ -116,4 +144,37 @@ function Base.write(io::IO, pomdp::POMDP)
             end
 		end
 	end
+end
+
+function pretty_print(io::IO, pomdp::POMDP)
+	_states       = ordered_states( pomdp)
+	_actions      = ordered_actions(pomdp)
+	_observations = ordered_observations(pomdp)
+
+	println("# ------------------------------------------------------------------------")
+	println("# TRANSITIONS")
+	println("T: * : * : * 0.0")
+	for action=_actions, state=_states, statep=_states
+		T = transition(pomdp, state, action)
+		println(io, "T: $(action) : $(state) : $(statep) : $(pdf(T, statep))")
+	end
+	println(io)
+
+	println("# ------------------------------------------------------------------------")
+	println("# OBSERVATIONS")
+	println("O: * : * : * 0.0")
+	for action=_actions, statep=_states, obs=_observations
+		O = observation(pomdp, action, statep)
+		println(io, "O: $(action) : $(statep) : $(obs) $(pdf(O, obs))")
+	end
+	println(io)
+
+	println("# ------------------------------------------------------------------------")
+	println("# REWARDS")
+	println("R: * : * : * : * 0.0")
+	for action=_actions, state=_states, statep=_states, obs=_observations
+		r = reward(pomdp, state, action, statep, obs)
+		println(io, "R: $(action) : $(state) : $(statep) : $(obs) $(r)")
+	end
+	println(io)
 end

@@ -46,9 +46,9 @@ function read_alpha(filename::AbstractString)
     alpha_vector_line_indeces = Int[]
     vector_length = -1
     for i in 1:length(lines)
-        
+
         matches = collect((m.match for m = eachmatch(REGEX_FLOATING_POINT, lines[i])))
-        
+
         if length(matches) > 1
             push!(alpha_vector_line_indeces, i)
             @assert occursin(r"^(\d)*$", lines[i-1]) "previous line must contain an action index"
