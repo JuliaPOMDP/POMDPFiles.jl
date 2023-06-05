@@ -1,25 +1,26 @@
 name = "POMDPFiles"
 uuid = "9cf5b727-2e06-5671-8c87-8c6b0f729d5d"
 repo = "https://github.com/JuliaPOMDP/POMDPFiles.jl"
-version = "0.2.3"
+version = "0.2.4"
 
 [deps]
-POMDPModelTools = "08074719-1b2a-587c-a292-00f91cc44415"
+POMDPModels = "355abbd5-f08e-5560-ac9e-8b5f2592a0ca"
+POMDPTools = "7588e00f-9cae-40de-98dc-e0c70c48cdd7"
 POMDPXFiles = "c6f6ee83-58c6-5336-a19f-2c76817e1af6"
 POMDPs = "a93abf59-7444-517b-a68a-c42f96afdd7d"
 Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
 Reexport = "189a3867-3050-52da-a836-e630ba90ab69"
 
 [compat]
-POMDPModelTools = "0.2, 0.3"
 POMDPXFiles = "0.2"
+POMDPTools = "0.1.4"
 POMDPs = "0.9"
 Reexport = "0.2, 1"
 julia = "1"
 
 [extras]
-POMDPModels = "355abbd5-f08e-5560-ac9e-8b5f2592a0ca"
+Downloads = "f43a241f-c20a-4ad4-852c-f6b1247861c6"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [targets]
-test = ["POMDPModels", "Test"]
+test = ["Downloads", "Test"]
