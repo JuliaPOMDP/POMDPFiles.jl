@@ -12,6 +12,7 @@ Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
 Reexport = "189a3867-3050-52da-a836-e630ba90ab69"
 
 [compat]
+POMDPModels = "0.4"
 POMDPXFiles = "0.2"
 POMDPTools = "0.1.4"
 POMDPs = "0.9"
