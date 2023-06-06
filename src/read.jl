@@ -1,3 +1,5 @@
+using POMDPModels: TabularPOMDP
+
 const REGEX_FLOATING_POINT = r"[-+]?[0-9]*\.?[0-9]+"
 
 """
@@ -81,4 +83,264 @@ function read_alpha(filename::AbstractString)
     end
 
     return alpha_vectors, alpha_actions
+end
+
+function read_pomdp(filename::AbstractString)
+
+    lines = open(readlines, filename)
+
+    alpha_vector_line_indeces = Int[]
+    vector_length = -1
+
+    discount = 0
+    num_states = 0
+    num_actions = 0
+    num_observations = 0
+
+    states = 0
+    actions = 0
+    observations = 0
+
+    all_indices = ':'
+
+    T_lines = Vector{Int64}()
+    O_lines = Vector{Int64}()
+    R_lines = Vector{Int64}()
+
+    lines = map(lines) do line
+        line[1:something(findfirst('#', line), length(line))]
+    end
+
+    for i in 1:length(lines)
+        if length(lines[i]) > 0
+            if occursin(r"discount:", lines[i]) && lines[i][1] != '#'
+                discount = parse(Float64, match(REGEX_FLOATING_POINT, lines[i]).match)
+            end
+            if occursin(r"states:", lines[i]) && lines[i][1] != '#'
+                states = split(strip(lines[i]), ' ')
+                if length(states) > 2
+                    num_states = length(states) - 1
+                    states = states[2:end]
+                else
+                    num_states = parse(Int64, states[2])
+                    states = collect(string(i) for i in 0:num_states-1)
+                end
+            end
+            if occursin(r"actions:", lines[i]) && lines[i][1] != '#'
+                actions = split(strip(lines[i]), ' ')
+                if length(actions) > 2
+                    num_actions = length(actions) - 1
+                    actions = actions[2:end]
+                else
+                    num_actions = parse(Int64, actions[2])
+                    actions = collect(string(i) for i in 0:num_actions-1)
+                end
+            end
+            if occursin(r"observations:", lines[i]) && lines[i][1] != '#'
+                observations = split(strip(lines[i]), ' ')
+                if length(observations) > 2
+                    num_observations = length(observations) - 1
+                    observations = observations[2:end]
+                else
+                    num_observations = parse(Int64, observations[2])
+                    observations = collect(string(i) for i in 0:num_observations-1)
+                end
+            end
+            if occursin(r"T:|T :", lines[i])
+                push!(T_lines, i)
+            end
+            if occursin(r"O:|O :", lines[i])
+                push!(O_lines, i)
+            end
+            if occursin(r"R:|R :", lines[i])
+                push!(R_lines, i)
+            end
+        end
+    end
+
+    T = zeros(num_states, num_actions, num_states)
+    O = zeros(num_observations, num_actions, num_states)
+    R = zeros(num_states, num_actions)
+
+    ind1 = 0
+    ind2 = 0
+    ind3 = 0
+
+    if length(T_lines) > 0   
+        if length(findall(x->x==':', lines[T_lines[1]])) == 3
+            for t in T_lines
+                l = replace(lines[t], ':'=>' ')
+                line = split(l, ' ')
+                line = collect(strip(i) for i in line)
+                deleteat!(line, findall(x->x=="", line))
+                if line[3] == "*"
+                    ind1 = collect(1:length(states))
+                else
+                    ind1 = findall(x->x==line[3], states)
+                end
+                if line[2] == "*"
+                    ind2 = collect(1:length(actions))
+                else
+                    ind2 = findall(x->x==line[2], actions)
+                end
+                if line[4] == "*"
+                    ind3 = collect(1:length(states))
+                else
+                    ind3 = findall(x->x==line[4], states)
+                end
+                T[ind3, ind2, ind1] .= parse(Float64, line[5])
+            end
+        elseif length(findall(x->x==':', lines[T_lines[1]])) == 2
+            for t in T_lines
+                l = t+1
+                act = strip(split(lines[t], ':')[2])
+                st = strip(split(lines[t], ':')[3])
+                i = findfirst(x->x==act, actions)
+                j = findfirst(x->x==st, states)
+                T[:,i,j] = collect((parse(Float64, m.match) for m = eachmatch(REGEX_FLOATING_POINT, lines[l])))
+            end
+        else
+            for t in T_lines
+                l = t+1
+                id = findall(strip(lines[l]), "identity")
+                un = findall(strip(lines[l]), "uniform")
+                act = strip(split(lines[t], ':')[2])
+                i = findfirst(x->x==act, actions)
+                if length(id) > 0
+                    for j in 1:num_states
+                        T[j,i,j] = 1
+                        l += 1
+                    end
+                elseif length(un) > 0
+                    for j in 1:num_states
+                        T[:,i,j] = ones(num_states)./num_states
+                        l += 1
+                    end
+                else
+                    for j in 1:num_states
+                        T[:,i,j] = collect((parse(Float64, m.match) for m = eachmatch(REGEX_FLOATING_POINT, lines[l])))
+                        l += 1
+                    end
+                end
+            end
+        end
+    end
+
+    if length(O_lines) > 0    
+        if length(findall(x->x==':', lines[O_lines[1]])) == 3
+            for t in O_lines
+                l = replace(lines[t], ':'=>' ')
+                line = split(l, ' ')
+                line = collect(strip(i) for i in line)
+                deleteat!(line, findall(x->x=="", line))
+                if line[4] == "*"
+                    ind1 = collect(1:length(observations))
+                else
+                    ind1 = findall(x->x==line[4], observations)
+                end
+                if line[2] == "*"
+                    ind2 = collect(1:length(actions))
+                else
+                    ind2 = findall(x->x==line[2], actions)
+                end
+                if line[3] == "*"
+                    ind3 = collect(1:length(states))
+                else
+                    ind3 = findall(x->x==line[3], states)
+                end
+                O[ind1, ind2, ind3] .= parse(Float64, line[5])
+            end
+        elseif length(findall(x->x==':', lines[O_lines[1]])) == 2
+            for t in T_lines
+                l = t+1
+                act = strip(split(lines[t], ':')[2])
+                st = strip(split(lines[t], ':')[3])
+                i = findfirst(x->x==act, actions)
+                j = findfirst(x->x==st, states)
+                O[:,i,j] = collect((parse(Float64, m.match) for m = eachmatch(REGEX_FLOATING_POINT, lines[l])))
+            end
+        else
+            for t in O_lines
+                l = t+1
+                un = findall(strip(lines[l]), "uniform")
+                act = strip(split(lines[t], ':')[2])
+                if act == "*"
+                    if length(un) > 0
+                        for j in 1:num_states
+                            for i in 1:num_actions
+                                O[:,i,j] = ones(num_observations)./num_observations
+                            end
+                            l += 1
+                        end
+                    else
+                        for j in 1:num_states
+                            for i in 1:num_actions
+                                O[:,i,j] = collect((parse(Float64, m.match) for m = eachmatch(REGEX_FLOATING_POINT, lines[l])))
+                            end
+                            l += 1
+                        end
+                    end
+                else
+                    i = findfirst(x->x==act, actions)
+                    if length(un) > 0
+                        for j in 1:num_states
+                            O[:,i,j] = ones(num_observations)./num_observations
+                            l += 1
+                        end
+                    else
+                        for j in 1:num_states
+                            O[:,i,j] = collect((parse(Float64, m.match) for m = eachmatch(REGEX_FLOATING_POINT, lines[l])))
+                            l += 1
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    if length(R_lines) > 0
+        if length(findall(x->x==':', lines[R_lines[1]])) == 4
+            for t in R_lines
+                l = replace(lines[t], ':'=>' ')
+                line = split(l, ' ')
+                line = collect(strip(i) for i in line)
+                deleteat!(line, findall(x->x=="", line))
+                if line[3] == "*"
+                    ind1 = collect(1:length(states))
+                else
+                    ind1 = findall(x->x==line[3], states)
+                end
+                if line[2] == "*"
+                    ind2 = collect(1:length(actions))
+                else
+                    ind2 = findall(x->x==line[2], actions)
+                end
+                R[ind1, ind2] .= parse(Float64, line[6])
+            end
+        elseif length(findall(x->x==':', lines[R_lines[1]])) == 3
+            for t in R_lines
+                l = t+1
+                act = strip(split(lines[t], ':')[2])
+                i = findfirst(x->x==act, actions)
+                for j in 1:num_states
+                    T[j,i,:] = collect((parse(Float64, m.match) for m = eachmatch(REGEX_FLOATING_POINT, lines[l])))
+                    l += 1
+                end
+            end
+        else
+            for t in R_lines
+                l = t+1
+                act = strip(split(lines[t], ':')[2])
+                i = findfirst(x->x==act, actions)
+                for j in 1:num_states
+                    T[j,i,:] = collect((parse(Float64, m.match) for m = eachmatch(REGEX_FLOATING_POINT, lines[l])))
+                    l += 1
+                end
+            end
+        end
+    end
+
+    m = TabularPOMDP(T, R, O, discount)
+    return m
+    
 end
