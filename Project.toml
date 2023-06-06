@@ -11,16 +11,16 @@ Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
 Reexport = "189a3867-3050-52da-a836-e630ba90ab69"
 
 [compat]
-POMDPModels = "0.4"
-POMDPXFiles = "0.2"
 POMDPTools = "0.1.4"
+POMDPXFiles = "0.2"
 POMDPs = "0.9"
 Reexport = "0.2, 1"
 julia = "1"
 
 [extras]
+POMDPModels = "355abbd5-f08e-5560-ac9e-8b5f2592a0ca"
 Downloads = "f43a241f-c20a-4ad4-852c-f6b1247861c6"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [targets]
-test = ["Downloads", "Test"]
+test = ["Downloads", "Test", "POMDPModels"]
