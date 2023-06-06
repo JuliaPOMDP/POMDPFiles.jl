@@ -1,5 +1,3 @@
-using POMDPModels: TabularPOMDP
-
 const REGEX_FLOATING_POINT = r"[-+]?[0-9]*\.?[0-9]+"
 
 """
