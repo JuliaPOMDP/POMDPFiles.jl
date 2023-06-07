@@ -9,9 +9,9 @@ using Printf
 import POMDPs: action, value
 
 export
-	POMDPFile,
+    POMDPFile,
 
-	read_alpha
+    read_alpha
 
 include("read.jl")
 include("write.jl")
