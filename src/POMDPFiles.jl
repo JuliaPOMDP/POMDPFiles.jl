@@ -10,12 +10,11 @@ using POMDPModels: TabularPOMDP
 
 import POMDPs: action, value
 
-export
-	POMDPFile,
-
-	read_alpha
-
+export read_alpha,
+	read_pomdp
 include("reader.jl")
+
+export prettyprint
 include("writer.jl")
 
 end # module
