@@ -151,7 +151,7 @@ function prettyprint(
 	println("O: * : * : * 0.0")
 	for a=_actions, sp=_states, o=_observations
 		O = observation(pomdp, a, sp)
-		println(io, "O: $(aname(a)) : $(sname(sp)) : $(oname(o)) $(pdf(O, obs))")
+		println(io, "O: $(aname(a)) : $(sname(sp)) : $(oname(o)) $(pdf(O, o))")
 	end
 	println(io)
 
