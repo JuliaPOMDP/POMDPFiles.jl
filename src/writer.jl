@@ -25,6 +25,7 @@ end
 """
 Write out a `.pomdp` file using the POMDPs.jl interface
 Specification: http://cs.brown.edu/research/ai/pomdp/examples/pomdp-file-spec.html
+A more recent version of the spec: https://pomdp.org/code/pomdp-file-spec.html
 """
 function Base.write(io::IO, pomdp::POMDP; pretty = false)
 	if pretty
