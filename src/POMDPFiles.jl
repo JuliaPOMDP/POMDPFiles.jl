@@ -15,7 +15,7 @@ export
 
 	read_alpha
 
-include("read.jl")
-include("write.jl")
+include("reader.jl")
+include("writer.jl")
 
 end # module
