@@ -11,7 +11,7 @@ using POMDPModels: TabularPOMDP
 import POMDPs: action, value
 
 export read_alpha,
-	read_pomdp
+    read_pomdp
 include("reader.jl")
 
 export prettyprint
