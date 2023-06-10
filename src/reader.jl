@@ -1,5 +1,3 @@
-using POMDPModels: TabularPOMDP
-
 const REGEX_FLOATING_POINT = r"[-+]?[0-9]*\.?[0-9]+"
 
 """
@@ -40,17 +38,15 @@ const REGEX_FLOATING_POINT = r"[-+]?[0-9]*\.?[0-9]+"
     the best action to take for that belief state given the value function.
 """
 function read_alpha(filename::AbstractString)
-
-    @assert isfile(filename) "filename $(filename) does not exist"
-
-    lines = readlines(open(filename))
+    lines = open(readlines, filename)
 
     alpha_vector_line_indeces = Int[]
     vector_length = -1
+
     for i in 1:length(lines)
-        
+
         matches = collect((m.match for m = eachmatch(REGEX_FLOATING_POINT, lines[i])))
-        
+
         if length(matches) > 1
             push!(alpha_vector_line_indeces, i)
             @assert occursin(r"^(\d)*$", lines[i-1]) "previous line must contain an action index"
@@ -86,11 +82,7 @@ function read_alpha(filename::AbstractString)
 end
 
 function read_pomdp(filename::AbstractString)
-
     lines = open(readlines, filename)
-
-    alpha_vector_line_indeces = Int[]
-    vector_length = -1
 
     discount = 0
     num_states = 0
@@ -100,8 +92,6 @@ function read_pomdp(filename::AbstractString)
     states = 0
     actions = 0
     observations = 0
-
-    all_indices = ':'
 
     T_lines = Vector{Int64}()
     O_lines = Vector{Int64}()
@@ -166,7 +156,7 @@ function read_pomdp(filename::AbstractString)
     ind2 = 0
     ind3 = 0
 
-    if length(T_lines) > 0   
+    if length(T_lines) > 0
         if length(findall(x->x==':', lines[T_lines[1]])) == 3
             for t in T_lines
                 l = replace(lines[t], ':'=>' ')
@@ -226,7 +216,7 @@ function read_pomdp(filename::AbstractString)
         end
     end
 
-    if length(O_lines) > 0    
+    if length(O_lines) > 0
         if length(findall(x->x==':', lines[O_lines[1]])) == 3
             for t in O_lines
                 l = replace(lines[t], ':'=>' ')
@@ -342,5 +332,4 @@ function read_pomdp(filename::AbstractString)
 
     m = TabularPOMDP(T, R, O, discount)
     return m
-    
 end

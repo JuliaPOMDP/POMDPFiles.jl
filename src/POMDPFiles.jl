@@ -4,16 +4,16 @@ using Reexport
 using POMDPs
 using POMDPTools
 using Printf
+using POMDPModels: TabularPOMDP
+
 @reexport using POMDPXFiles # for POMDPAlphas
 
 import POMDPs: action, value
 
-export
-    POMDPFile,
+export read_alpha, read_pomdp
+include("reader.jl")
 
-    read_alpha
-
-include("read.jl")
-include("write.jl")
+export numericprint, symbolicprint
+include("writer.jl")
 
 end # module
