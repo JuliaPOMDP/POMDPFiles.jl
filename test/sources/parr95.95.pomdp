@@ -8,7 +8,14 @@ states: I hi-A lo-A C D plus1 minus1
 actions: a b c
 observations: I A C D plus1 minus1
 
-start include: I
+start include: I hi-A C
+start exclude: C
+start: uniform
+start exclude: hi-A plus1
+start: hi-A plus1
+start: first-state fourth-state
+start include: third-state
+start exclude: first-state
 
 T : * : I : hi-A 0.5
 T : * : I : lo-A 0.5
