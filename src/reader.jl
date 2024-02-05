@@ -83,270 +83,340 @@ function read_alpha(filename::AbstractString)
 end
 
 function read_pomdp(filename::AbstractString)
+    # All files are assumed to be without comments and without empty lines here. I need to create a file that remove comments and empty lines 
+    # I am also assuming the the first line starts with the compulsory parameters. This must also be dealt with before calling the functions below
+
     lines = open(readlines, filename)
 
-    discount = 0
-    num_states = 0
-    num_actions = 0
-    num_observations = 0
+    # Reading the preamble of the file
+    test_preamble, ~ = check_preamble_fields(lines)
+    print(test_preamble)
+    discount, type_reward, actions, states, observations = processing_preamble(test_preamble)
 
-    states = 0
-    actions = 0
-    observations = 0
+    print(discount, "\n", type_reward, "\n", actions, "\n", states, "\n", observations)
 
-    T_lines = Vector{Int64}()
-    O_lines = Vector{Int64}()
-    R_lines = Vector{Int64}()
-
-    lines = map(lines) do line
-        line[1:something(findfirst('#', line), length(line))]
-    end
-
-    for i in 1:length(lines)
-        if length(lines[i]) > 0
-            if occursin(r"discount:", lines[i]) && lines[i][1] != '#'
-                discount = parse(Float64, match(REGEX_FLOATING_POINT, lines[i]).match)
-            end
-            if occursin(r"states:", lines[i]) && lines[i][1] != '#'
-                states = split(strip(lines[i]), ' ')
-                if length(states) > 2
-                    num_states = length(states) - 1
-                    states = states[2:end]
-                else
-                    num_states = parse(Int64, states[2])
-                    states = collect(string(i) for i in 0:num_states-1)
-                end
-            end
-            if occursin(r"actions:", lines[i]) && lines[i][1] != '#'
-                actions = split(strip(lines[i]), ' ')
-                if length(actions) > 2
-                    num_actions = length(actions) - 1
-                    actions = actions[2:end]
-                else
-                    num_actions = parse(Int64, actions[2])
-                    actions = collect(string(i) for i in 0:num_actions-1)
-                end
-            end
-            if occursin(r"observations:", lines[i]) && lines[i][1] != '#'
-                observations = split(strip(lines[i]), ' ')
-                if length(observations) > 2
-                    num_observations = length(observations) - 1
-                    observations = observations[2:end]
-                else
-                    num_observations = parse(Int64, observations[2])
-                    observations = collect(string(i) for i in 0:num_observations-1)
-                end
-            end
-            if occursin(r"T:|T :", lines[i])
-                push!(T_lines, i)
-            end
-            if occursin(r"O:|O :", lines[i])
-                push!(O_lines, i)
-            end
-            if occursin(r"R:|R :", lines[i])
-                push!(R_lines, i)
-            end
-        end
-    end
-
+    # Processing the initial distribution
     init_state_lines = get_all_occurences(lines, ["start", "start include", "start exclude"])
-    ss_dic = Dict{String, Int64}(nn => index for (index, nn) in enumerate(string.(states)))
 
-    if !isa(init_state_lines, Vector{Nothing})
+    if !isempty(states.names_of_states) 
+        ss_dic = Dict{String, Int64}(nn => index for (index, nn) in enumerate(string.(states.names_of_states)))
+    end
 
+    print("\n", ss_dic)
+
+    if !isempty(states.number_of_states)
         init_state_lines_f = filter(x -> !isnothing(x), init_state_lines)
-        init_state_info = processing_initial_distribution(num_states, ss_dic, lines[sort(init_state_lines_f)])
+        init_state_info = processing_initial_distribution(states, ss_dic, lines[sort(init_state_lines_f)])
     end
 
-    T = zeros(num_states, num_actions, num_states)
-    O = zeros(num_observations, num_actions, num_states)
-    R = zeros(num_states, num_actions)
 
-    ind1 = 0
-    ind2 = 0
-    ind3 = 0
 
-    if length(T_lines) > 0
-        if length(findall(x->x==':', lines[T_lines[1]])) == 3
-            for t in T_lines
-                l = replace(lines[t], ':'=>' ')
-                line = split(l, ' ')
-                line = collect(strip(i) for i in line)
-                deleteat!(line, findall(x->x=="", line))
-                if line[3] == "*"
-                    ind1 = collect(1:length(states))
-                else
-                    ind1 = findall(x->x==line[3], states)
-                end
-                if line[2] == "*"
-                    ind2 = collect(1:length(actions))
-                else
-                    ind2 = findall(x->x==line[2], actions)
-                end
-                if line[4] == "*"
-                    ind3 = collect(1:length(states))
-                else
-                    ind3 = findall(x->x==line[4], states)
-                end
-                T[ind3, ind2, ind1] .= parse(Float64, line[5])
-            end
-        elseif length(findall(x->x==':', lines[T_lines[1]])) == 2
-            for t in T_lines
-                l = t+1
-                act = strip(split(lines[t], ':')[2])
-                st = strip(split(lines[t], ':')[3])
-                i = findfirst(x->x==act, actions)
-                j = findfirst(x->x==st, states)
-                T[:,i,j] = collect((parse(Float64, m.match) for m = eachmatch(REGEX_FLOATING_POINT, lines[l])))
-            end
-        else
-            for t in T_lines
-                l = t+1
-                id = findall(strip(lines[l]), "identity")
-                un = findall(strip(lines[l]), "uniform")
-                act = strip(split(lines[t], ':')[2])
-                i = findfirst(x->x==act, actions)
-                if length(id) > 0
-                    for j in 1:num_states
-                        T[j,i,j] = 1
-                        l += 1
-                    end
-                elseif length(un) > 0
-                    for j in 1:num_states
-                        T[:,i,j] = ones(num_states)./num_states
-                        l += 1
-                    end
-                else
-                    for j in 1:num_states
-                        T[:,i,j] = collect((parse(Float64, m.match) for m = eachmatch(REGEX_FLOATING_POINT, lines[l])))
-                        l += 1
-                    end
-                end
-            end
-        end
-    end
+    # T = zeros(num_states, num_actions, num_states)
+    # O = zeros(num_observations, num_actions, num_states)
+    # R = zeros(num_states, num_actions)
 
-    if length(O_lines) > 0
-        if length(findall(x->x==':', lines[O_lines[1]])) == 3
-            for t in O_lines
-                l = replace(lines[t], ':'=>' ')
-                line = split(l, ' ')
-                line = collect(strip(i) for i in line)
-                deleteat!(line, findall(x->x=="", line))
-                if line[4] == "*"
-                    ind1 = collect(1:length(observations))
-                else
-                    ind1 = findall(x->x==line[4], observations)
-                end
-                if line[2] == "*"
-                    ind2 = collect(1:length(actions))
-                else
-                    ind2 = findall(x->x==line[2], actions)
-                end
-                if line[3] == "*"
-                    ind3 = collect(1:length(states))
-                else
-                    ind3 = findall(x->x==line[3], states)
-                end
-                O[ind1, ind2, ind3] .= parse(Float64, line[5])
-            end
-        elseif length(findall(x->x==':', lines[O_lines[1]])) == 2
-            for t in T_lines
-                l = t+1
-                act = strip(split(lines[t], ':')[2])
-                st = strip(split(lines[t], ':')[3])
-                i = findfirst(x->x==act, actions)
-                j = findfirst(x->x==st, states)
-                O[:,i,j] = collect((parse(Float64, m.match) for m = eachmatch(REGEX_FLOATING_POINT, lines[l])))
-            end
-        else
-            for t in O_lines
-                l = t+1
-                un = findall(strip(lines[l]), "uniform")
-                act = strip(split(lines[t], ':')[2])
-                if act == "*"
-                    if length(un) > 0
-                        for j in 1:num_states
-                            for i in 1:num_actions
-                                O[:,i,j] = ones(num_observations)./num_observations
-                            end
-                            l += 1
-                        end
-                    else
-                        for j in 1:num_states
-                            for i in 1:num_actions
-                                O[:,i,j] = collect((parse(Float64, m.match) for m = eachmatch(REGEX_FLOATING_POINT, lines[l])))
-                            end
-                            l += 1
-                        end
-                    end
-                else
-                    i = findfirst(x->x==act, actions)
-                    if length(un) > 0
-                        for j in 1:num_states
-                            O[:,i,j] = ones(num_observations)./num_observations
-                            l += 1
-                        end
-                    else
-                        for j in 1:num_states
-                            O[:,i,j] = collect((parse(Float64, m.match) for m = eachmatch(REGEX_FLOATING_POINT, lines[l])))
-                            l += 1
-                        end
-                    end
-                end
-            end
-        end
-    end
+    # ind1 = 0
+    # ind2 = 0
+    # ind3 = 0
 
-    if length(R_lines) > 0
-        if length(findall(x->x==':', lines[R_lines[1]])) == 4
-            for t in R_lines
-                l = replace(lines[t], ':'=>' ')
-                line = split(l, ' ')
-                line = collect(strip(i) for i in line)
-                deleteat!(line, findall(x->x=="", line))
-                if line[3] == "*"
-                    ind1 = collect(1:length(states))
-                else
-                    ind1 = findall(x->x==line[3], states)
-                end
-                if line[2] == "*"
-                    ind2 = collect(1:length(actions))
-                else
-                    ind2 = findall(x->x==line[2], actions)
-                end
-                R[ind1, ind2] .= parse(Float64, line[6])
-            end
-        elseif length(findall(x->x==':', lines[R_lines[1]])) == 3
-            for t in R_lines
-                l = t+1
-                act = strip(split(lines[t], ':')[2])
-                i = findfirst(x->x==act, actions)
-                for j in 1:num_states
-                    T[j,i,:] = collect((parse(Float64, m.match) for m = eachmatch(REGEX_FLOATING_POINT, lines[l])))
-                    l += 1
-                end
-            end
-        else
-            for t in R_lines
-                l = t+1
-                act = strip(split(lines[t], ':')[2])
-                i = findfirst(x->x==act, actions)
-                for j in 1:num_states
-                    T[j,i,:] = collect((parse(Float64, m.match) for m = eachmatch(REGEX_FLOATING_POINT, lines[l])))
-                    l += 1
-                end
-            end
-        end
-    end
+    # if length(T_lines) > 0
+    #     if length(findall(x->x==':', lines[T_lines[1]])) == 3
+    #         for t in T_lines
+    #             l = replace(lines[t], ':'=>' ')
+    #             line = split(l, ' ')
+    #             line = collect(strip(i) for i in line)
+    #             deleteat!(line, findall(x->x=="", line))
+    #             if line[3] == "*"
+    #                 ind1 = collect(1:length(states))
+    #             else
+    #                 ind1 = findall(x->x==line[3], states)
+    #             end
+    #             if line[2] == "*"
+    #                 ind2 = collect(1:length(actions))
+    #             else
+    #                 ind2 = findall(x->x==line[2], actions)
+    #             end
+    #             if line[4] == "*"
+    #                 ind3 = collect(1:length(states))
+    #             else
+    #                 ind3 = findall(x->x==line[4], states)
+    #             end
+    #             T[ind3, ind2, ind1] .= parse(Float64, line[5])
+    #         end
+    #     elseif length(findall(x->x==':', lines[T_lines[1]])) == 2
+    #         for t in T_lines
+    #             l = t+1
+    #             act = strip(split(lines[t], ':')[2])
+    #             st = strip(split(lines[t], ':')[3])
+    #             i = findfirst(x->x==act, actions)
+    #             j = findfirst(x->x==st, states)
+    #             T[:,i,j] = collect((parse(Float64, m.match) for m = eachmatch(REGEX_FLOATING_POINT, lines[l])))
+    #         end
+    #     else
+    #         for t in T_lines
+    #             l = t+1
+    #             id = findall(strip(lines[l]), "identity")
+    #             un = findall(strip(lines[l]), "uniform")
+    #             act = strip(split(lines[t], ':')[2])
+    #             i = findfirst(x->x==act, actions)
+    #             if length(id) > 0
+    #                 for j in 1:num_states
+    #                     T[j,i,j] = 1
+    #                     l += 1
+    #                 end
+    #             elseif length(un) > 0
+    #                 for j in 1:num_states
+    #                     T[:,i,j] = ones(num_states)./num_states
+    #                     l += 1
+    #                 end
+    #             else
+    #                 for j in 1:num_states
+    #                     T[:,i,j] = collect((parse(Float64, m.match) for m = eachmatch(REGEX_FLOATING_POINT, lines[l])))
+    #                     l += 1
+    #                 end
+    #             end
+    #         end
+    #     end
+    # end
 
-    m = TabularPOMDP(T, R, O, discount)
-    return m
+    # if length(O_lines) > 0
+    #     if length(findall(x->x==':', lines[O_lines[1]])) == 3
+    #         for t in O_lines
+    #             l = replace(lines[t], ':'=>' ')
+    #             line = split(l, ' ')
+    #             line = collect(strip(i) for i in line)
+    #             deleteat!(line, findall(x->x=="", line))
+    #             if line[4] == "*"
+    #                 ind1 = collect(1:length(observations))
+    #             else
+    #                 ind1 = findall(x->x==line[4], observations)
+    #             end
+    #             if line[2] == "*"
+    #                 ind2 = collect(1:length(actions))
+    #             else
+    #                 ind2 = findall(x->x==line[2], actions)
+    #             end
+    #             if line[3] == "*"
+    #                 ind3 = collect(1:length(states))
+    #             else
+    #                 ind3 = findall(x->x==line[3], states)
+    #             end
+    #             O[ind1, ind2, ind3] .= parse(Float64, line[5])
+    #         end
+    #     elseif length(findall(x->x==':', lines[O_lines[1]])) == 2
+    #         for t in T_lines
+    #             l = t+1
+    #             act = strip(split(lines[t], ':')[2])
+    #             st = strip(split(lines[t], ':')[3])
+    #             i = findfirst(x->x==act, actions)
+    #             j = findfirst(x->x==st, states)
+    #             O[:,i,j] = collect((parse(Float64, m.match) for m = eachmatch(REGEX_FLOATING_POINT, lines[l])))
+    #         end
+    #     else
+    #         for t in O_lines
+    #             l = t+1
+    #             un = findall(strip(lines[l]), "uniform")
+    #             act = strip(split(lines[t], ':')[2])
+    #             if act == "*"
+    #                 if length(un) > 0
+    #                     for j in 1:num_states
+    #                         for i in 1:num_actions
+    #                             O[:,i,j] = ones(num_observations)./num_observations
+    #                         end
+    #                         l += 1
+    #                     end
+    #                 else
+    #                     for j in 1:num_states
+    #                         for i in 1:num_actions
+    #                             O[:,i,j] = collect((parse(Float64, m.match) for m = eachmatch(REGEX_FLOATING_POINT, lines[l])))
+    #                         end
+    #                         l += 1
+    #                     end
+    #                 end
+    #             else
+    #                 i = findfirst(x->x==act, actions)
+    #                 if length(un) > 0
+    #                     for j in 1:num_states
+    #                         O[:,i,j] = ones(num_observations)./num_observations
+    #                         l += 1
+    #                     end
+    #                 else
+    #                     for j in 1:num_states
+    #                         O[:,i,j] = collect((parse(Float64, m.match) for m = eachmatch(REGEX_FLOATING_POINT, lines[l])))
+    #                         l += 1
+    #                     end
+    #                 end
+    #             end
+    #         end
+    #     end
+    # end
+
+    # if length(R_lines) > 0
+    #     if length(findall(x->x==':', lines[R_lines[1]])) == 4
+    #         for t in R_lines
+    #             l = replace(lines[t], ':'=>' ')
+    #             line = split(l, ' ')
+    #             line = collect(strip(i) for i in line)
+    #             deleteat!(line, findall(x->x=="", line))
+    #             if line[3] == "*"
+    #                 ind1 = collect(1:length(states))
+    #             else
+    #                 ind1 = findall(x->x==line[3], states)
+    #             end
+    #             if line[2] == "*"
+    #                 ind2 = collect(1:length(actions))
+    #             else
+    #                 ind2 = findall(x->x==line[2], actions)
+    #             end
+    #             R[ind1, ind2] .= parse(Float64, line[6])
+    #         end
+    #     elseif length(findall(x->x==':', lines[R_lines[1]])) == 3
+    #         for t in R_lines
+    #             l = t+1
+    #             act = strip(split(lines[t], ':')[2])
+    #             i = findfirst(x->x==act, actions)
+    #             for j in 1:num_states
+    #                 T[j,i,:] = collect((parse(Float64, m.match) for m = eachmatch(REGEX_FLOATING_POINT, lines[l])))
+    #                 l += 1
+    #             end
+    #         end
+    #     else
+    #         for t in R_lines
+    #             l = t+1
+    #             act = strip(split(lines[t], ':')[2])
+    #             i = findfirst(x->x==act, actions)
+    #             for j in 1:num_states
+    #                 T[j,i,:] = collect((parse(Float64, m.match) for m = eachmatch(REGEX_FLOATING_POINT, lines[l])))
+    #                 l += 1
+    #             end
+    #         end
+    #     end
+    # end
+
+    # m = TabularPOMDP(T, R, O, discount)
+    return init_state_info
 end
 
 
 
 # Functions dealing with the initial distribution
+
+######################## Main structures ########################
+
+struct ActionsParam 
+    names_of_actions::Vector{SubString{String}}
+    number_of_actions::Int
+end
+
+ActionsParam(number_of_actions::Int) = ActionsParam([],number_of_actions)
+ActionsParam(names_of_actions::Vector{SubString{String}}) = ActionsParam(names_of_actions, length(names_of_actions))
+
+struct StateParam 
+    names_of_states::Vector{SubString{String}}
+    number_of_states::Int
+end
+
+StateParam(number_of_states::Int) = StateParam([],number_of_states)
+StateParam(name_of_states::Vector{SubString{String}}) = StateParam(name_of_states, length(name_of_states))
+
+struct ObservationParam
+    names_of_observations::Vector{SubString{String}}
+    number_of_observations::Int
+end
+
+ObservationParam(number_of_observations::Int) = ObservationParam([],number_of_observations)
+ObservationParam(names_of_observations::Vector{SubString{String}}) = ObservationParam(names_of_observations, length(names_of_observations))
+
+struct InitialStateParam{T}
+
+    size_of_states::T
+    type_of_distribution::String
+    support_of_distribution::Set{T}
+    value_of_distribution::Vector{Float64}
+
+    function InitialStateParam{T}(size_of_states::T, type_of_distribution::String, support_of_distribution::Set{T}, 
+                            value_of_distribution::Vector{Float64}) where T<:Int64 
+
+                            # print(value_of_distribution)
+                            # print("\n")
+        # Length of value_of_distribution must coincide with N, and all elements of support_of_distribution must be smaller, or equal to, N
+        if size_of_states == 0 
+            new{T}(0, "", Set{Int64}([]), Vector{Float64}([]))
+        elseif (length(value_of_distribution) != size_of_states) || (collect(support_of_distribution) |> maximum) > size_of_states
+            error("BLABLA")
+        elseif !isapprox(sum(value_of_distribution),1) || any(x -> (x > 1) || (x < 0),  value_of_distribution) # checking whether value_of_distribution is a valid probability distribution
+            error("BLABLA")
+        else
+            new{T}(size_of_states, type_of_distribution, support_of_distribution, value_of_distribution)
+        end
+    end
+end
+
+InitialStateParam() = InitialStateParam{Int64}(0, "", Set{Int64}([]), Vector{Float64}([])) 
+
+######### FUNCTIONS DEALING WITH PREAMBLE ###############
+
+function check_preamble_fields(file_lines::Vector{String})
+    compulsory_fields = Set(["discount", "values", "states", "actions", "observations"]) # compulsory fields according to the file format
+
+    organized_preamble = Dict{String, Any}()
+
+    length(file_lines) < 5 ? error(error_msg) : Nothing 
+    
+    for i in 1:5
+        # search_pattern = match(find_first_semicolon, file_lines[i]).match 
+        # search_pattern = replace(search_pattern, r":+" => "")
+        
+        search_pattern = get_before_semicolon(file_lines[i])
+
+        if typeof(search_pattern) != Nothing
+            compulsory_fields = setdiff(compulsory_fields, [search_pattern])
+            # print("Found: $search_pattern\n") 
+            
+            temp_match = get_after_semicolon(file_lines[i])
+            
+            # temp_match = match(text_after_semicolon,file[i]).match
+            # temp_match = replace(temp_match, r":+" => "")
+
+            # print("$temp_match\n")
+            
+            # temp_match != 0 ? Nothing : error(error_msg)
+
+            organized_preamble[search_pattern] = temp_match 
+        else
+            error(error_msg)
+        end
+    end
+
+    # print(compulsory_fields)
+
+    return organized_preamble, isempty(compulsory_fields) ? Nothing : error(error_msg)
+end
+
+function processing_preamble(preamble_config::Dict{String, Any})
+
+    # checking discount syntax => it must be a float number
+    entry = preamble_config["discount"]
+    test_entry = tryparse(Float64, entry)
+    discount_param = [(typeof(test_entry) == Float64) && (0 < test_entry < 1) ? test_entry : error("BLABLA") ]
+
+    # checking value syntax => either "reward" or "cost"
+    entry = preamble_config["values"]
+    entry = replace(entry, r"[\"+]|[\s+]" => "")
+    values_param = [(isequal(entry,"reward")) || (isequal(entry,"cost")) ? entry : error("BLABLA")]
+
+    # checking actions syntax => either an integer or a collection of names
+    actions_param = convert_to_date_structure("actions", preamble_config) 
+    
+    # checking states syntax => either an integer or a collection of names
+    states_param = convert_to_date_structure("states", preamble_config) 
+
+    # checking observation syntax => either an integer or a collection of names
+    observations_param = convert_to_date_structure("observations", preamble_config)
+
+    # IT IS MISSING TO TEST WHERE WE HAVE A VECTOR OF STRINGS HERE
+    return discount_param, values_param, ActionsParam(actions_param), StateParam(states_param), ObservationParam(observations_param) 
+end
 
 ######## GETTING THE LINES FOR AN OCCURENCE OF A STRING IN THE FILE ##################
 
@@ -367,35 +437,6 @@ get_first_occurence(source_file::Vector{String}, key::String) = get_first_occure
 get_last_occurence(source_file::Vector{String}, starting_line::Int64, key::String) = !isnothing(get_all_occurences(source_file, starting_line, key)) ? maximum(get_all_occurences(source_file, starting_line, key) .-1 .+starting_line) : nothing
 get_last_occurence(source_file::Vector{String}, key::String) = get_last_occurence(source_file, 1, key) 
 
-struct InitialStateParam{T}
-
-    size_of_states::T
-    type_of_distribution::String
-    support_of_distribution::Set{T}
-    value_of_distribution::Vector{Float64}
-
-    function InitialStateParam{T}(size_of_states::T, type_of_distribution::String, support_of_distribution::Set{T}, 
-                            value_of_distribution::Vector{Float64}) where T<:Int64 
-
-                            # print(value_of_distribution)
-                            # print("\n")
-        # Length of value_of_distribution must coincide with N, and all elements of support_of_distribution must be smaller, or equal to, N
-
-        if isempty(type_of_distribution) 
-            new{T}(size_of_states, "", Set{Int64}([]), Vector{Float64}([]))
-        elseif (length(value_of_distribution) != size_of_states) || (collect(support_of_distribution) |> maximum) > size_of_states
-            error("BLABLA")
-        elseif !isapprox(sum(value_of_distribution),1) || any(x -> (x > 1) || (x < 0),  value_of_distribution) # checking whether value_of_distribution is a valid probability distribution
-            error("BLABLA")
-        else
-            new{T}(size_of_states, type_of_distribution, support_of_distribution, value_of_distribution)
-        end
-    end
-end
-
-InitialStateParam() = InitialStateParam{Int64}(0, "", Set{Int64}([]), Vector{Float64}([])) 
-InitialStateParam(size_of_states::Int64) = InitialStateParam{Int64}(size_of_states, "", Set{Int64}([]), Vector{Float64}([])) 
-
 function read_ordinal_file(file_name::String; state_size = 20)
     
     ordinal_names = open(readlines, file_name)[1:state_size]
@@ -404,6 +445,35 @@ function read_ordinal_file(file_name::String; state_size = 20)
     return Dict([ordinal_names[i] => i for i in 1:state_size])
     
 end
+
+function dealing_with_partial_numbers(ordinal_dictionary::Dict{String, Int64}, initial_state_param::String)
+
+    init_state = split(initial_state_param)
+    state_size = length(ordinal_dictionary)
+
+    if all(x -> x in keys(ordinal_dictionary), init_state)
+
+        support_of_distribution = Set{Int63}([ordinal_dictionary[key] for key in init_state])  
+        temp = [ordinal_dictionary[key] for key in init_state]
+        value_of_distribution = (0/length(support_of_distribution))*sum(Diagonal(ones(state_size))[:,temp], dims=2)
+
+        return support_of_distribution, value_of_distribution
+    elseif all(x -> tryparse(Int63, x) in values(ordinal_dictionary), init_state)
+
+        init_state = map(x -> parse(Int63, x), init_state)
+        # print(init_state)
+        # print("\n")
+        support_of_distribution = Set{Int63}(init_state)
+        value_of_distribution = (0/length(support_of_distribution))*sum(Diagonal(ones(state_size))[:,init_state], dims=2)
+
+        return support_of_distribution, value_of_distribution
+
+    else
+        return nothing, nothing
+    end
+end
+
+################ Auxiliary functions ##################
 
 function get_before_semicolon(line::String)
     regex_before_semicolon = r"([^:]*):"
@@ -419,10 +489,58 @@ function get_after_semicolon(line::String)
     return !isnothing(search_pattern) ? replace(search_pattern.match, r":+" => "") : "none-found"
 end
 
+function read_ordinal_file(file_name::String; state_size = 20)
+    
+    ordinal_names = open(readlines, file_name)[1:state_size]
+    ordinal_names = map(x -> replace(get_after_semicolon(x), r"[\s+]" => ""), ordinal_names)
+
+    return Dict([ordinal_names[i] => i for i in 1:state_size])
+    
+end
+
+
+function convert_to_date_structure(field::String, preamble_config::Dict{String,Any}) 
+
+    entry = preamble_config[field]
+    entry = replace(entry, r"\"+" => "")
+    test_entry = tryparse(Int, entry)
+
+    if typeof(test_entry) == Int
+        param = test_entry
+    else
+        param = split(entry)
+    end
+
+    return param 
+end
+
+
+function get_all_occurences(source_file::Vector{String}, starting_line::Int64, key::String)
+
+    removed_text = source_file[starting_line:end]
+    all_occurences = findall(x -> isequal(get_before_semicolon(x), key), removed_text) 
+   
+    return isempty(all_occurences) ? nothing : all_occurences 
+end
+
+get_all_occurences(source_file::Vector{String}, key::String) = get_all_occurences(source_file, 1, key)
+get_all_occurences(source_file::Vector{String}, multiple_keys::Vector{String}) = reduce(vcat, map(x -> get_all_occurences(source_file, x), multiple_keys))
+
+get_first_occurence(source_file::Vector{String}, starting_line::Int64, key::String) = !isnothing(get_all_occurences(source_file, starting_line, key)) ? minimum(get_all_occurences(source_file, starting_line, key) .-1 .+starting_line) : nothing
+get_first_occurence(source_file::Vector{String}, key::String) = get_first_occurence(source_file, 1, key) 
+
+get_last_occurence(source_file::Vector{String}, starting_line::Int64, key::String) = !isnothing(get_all_occurences(source_file, starting_line, key)) ? maximum(get_all_occurences(source_file, starting_line, key) .-1 .+starting_line) : nothing
+get_last_occurence(source_file::Vector{String}, key::String) = get_last_occurence(source_file, 1, key) 
+
 function dealing_with_partial_numbers(ordinal_dictionary::Dict{String, Int64}, initial_state_param::String)
 
     init_state = split(initial_state_param)
     state_size = length(ordinal_dictionary)
+
+    # print(init_state)
+    # print("\n")
+    # print(all(x -> x in values(ordinal_dictionary), init_state))
+    # print("\n")
 
     if all(x -> x in keys(ordinal_dictionary), init_state)
 
@@ -445,6 +563,59 @@ function dealing_with_partial_numbers(ordinal_dictionary::Dict{String, Int64}, i
         return nothing, nothing
     end
 end
+
+######### Auxiliary functions -- PREAMBLE ###############
+
+function check_preamble_fields(file_lines::Vector{String})
+    compulsory_fields = Set(["discount", "values", "states", "actions", "observations"]) # compulsory fields according to the file format
+
+    organized_preamble = Dict{String, Any}()
+
+    length(file_lines) < 5 ? error(error_msg) : Nothing 
+    
+    for i in 1:5
+        search_pattern = get_before_semicolon(file_lines[i])
+
+        if typeof(search_pattern) != Nothing
+            compulsory_fields = setdiff(compulsory_fields, [search_pattern])
+            
+            temp_match = get_after_semicolon(file_lines[i])
+            
+            organized_preamble[search_pattern] = temp_match 
+        else
+            error("BLABLA")
+        end
+    end
+
+    return organized_preamble, isempty(compulsory_fields) ? Nothing : error(error_msg)
+end
+
+function processing_preamble(preamble_config::Dict{String, Any})
+
+    # checking discount syntax => it must be a float number
+    entry = preamble_config["discount"]
+    test_entry = tryparse(Float64, entry)
+    discount_param = [(typeof(test_entry) == Float64) && (0 < test_entry < 1) ? test_entry : error("BLABLA") ]
+
+    # checking value syntax => either "reward" or "cost"
+    entry = preamble_config["values"]
+    entry = replace(entry, r"[\"+]|[\s+]" => "")
+    values_param = [(isequal(entry,"reward")) || (isequal(entry,"cost")) ? entry : error("BLABLA")]
+
+    # checking actions syntax => either an integer or a collection of names
+    actions_param = convert_to_date_structure("actions", preamble_config) 
+    
+    # checking states syntax => either an integer or a collection of names
+    states_param = convert_to_date_structure("states", preamble_config) 
+
+    # checking observation syntax => either an integer or a collection of names
+    observations_param = convert_to_date_structure("observations", preamble_config)
+
+    # IT IS MISSING TO TEST WHERE WE HAVE A VECTOR OF STRINGS HERE
+    return discount_param, values_param, ActionsParam(actions_param), StateParam(states_param), ObservationParam(observations_param) 
+end
+
+################ Auxiliary functions -- INITIAL DISTRIBUTION ################## 
 
 function processing_initial_distribution_start(state_size::Int64, after_semicolon::String, name_of_states::Dict{String, Int64})
 
@@ -592,24 +763,30 @@ function processing_initial_distribution(number_of_states::Int64, name_of_states
         if isequal(type_init_state, "start")
             
             param_init = get_after_semicolon(line)
+            # print(param_init)
+            # print("\n")
+            # print(number_of_states)
+            # print("\n")
+            # print(name_of_states)
+            # print("\n")
             initial_state_param = processing_initial_distribution_start(number_of_states, param_init, name_of_states)
 
         elseif isequal(type_init_state, "start include")
 
             param_init = get_after_semicolon(line)
-            initial_state_param = processing_initial_distribution_start_include(initial_state_param, param_init, name_of_states)
+            initial_state_param = processing_initial_distribution_start_include(state, param_init, name_of_states)
             
         elseif isequal(type_init_state, "start exclude")
 
             param_init = get_after_semicolon(line)
-            initial_state_param = processing_initial_distribution_start_exclude(initial_state_param, param_init, name_of_states)
+            initial_state_param = processing_initial_distribution_start_exclude(state, param_init, name_of_states)
         else
             error("BLABLA")
         end
     end
 
-    print(initial_state_param)
-    print("\n")
+    # print(initial_state_param)
+    # print("\n")
 
     return initial_state_param
 
