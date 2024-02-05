@@ -106,7 +106,7 @@ function read_pomdp(filename::AbstractString)
 
     if !isempty(states.number_of_states)
         init_state_lines_f = filter(x -> !isnothing(x), init_state_lines)
-        init_state_info = processing_initial_distribution(states, ss_dic, lines[sort(init_state_lines_f)])
+        init_state_info = processing_initial_distribution(states.number_of_states, ss_dic, lines[sort(init_state_lines_f)])
     end
 
 
@@ -352,7 +352,9 @@ struct InitialStateParam{T}
     end
 end
 
+
 InitialStateParam() = InitialStateParam{Int64}(0, "", Set{Int64}([]), Vector{Float64}([])) 
+InitialStateParam(size_of_states::Int64) = InitialStateParam{Int64}(size_of_states, "", Set{Int64}([]), Vector{Float64}([])) 
 
 ######### FUNCTIONS DEALING WITH PREAMBLE ###############
 
@@ -754,6 +756,7 @@ end
 function processing_initial_distribution(number_of_states::Int64, name_of_states::Dict{String, Int64}, initial_state_ocurrences::Vector{String})
     # According to the grammar this can either be a number, a probability distribution over states, or strings (uniform or ordinal description of states)
     # print(s₀_param)
+    print(number_of_states, "\n")
     initial_state_param = InitialStateParam(number_of_states)
     
     for line in initial_state_ocurrences
