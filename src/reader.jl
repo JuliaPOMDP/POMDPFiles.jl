@@ -86,28 +86,30 @@ function read_pomdp(filename::AbstractString)
     # All files are assumed to be without comments and without empty lines here. I need to create a file that remove comments and empty lines 
     # I am also assuming the the first line starts with the compulsory parameters. This must also be dealt with before calling the functions below
 
-    lines = open(readlines, filename)
-
+    pre_file = open(readlines, filename)
+    lines = remove_comments_and_white_space(pre_file)
+    # print(lines)
     # Reading the preamble of the file
     test_preamble, ~ = check_preamble_fields(lines)
-    print(test_preamble)
     discount, type_reward, actions, states, observations = processing_preamble(test_preamble)
-
-    print(discount, "\n", type_reward, "\n", actions, "\n", states, "\n", observations)
 
     # Processing the initial distribution
     init_state_lines = get_all_occurences(lines, ["start", "start include", "start exclude"])
 
     if !isempty(states.names_of_states) 
         ss_dic = Dict{String, Int64}(nn => index for (index, nn) in enumerate(string.(states.names_of_states)))
+    else
+        ss_dic = Dict{String,Int64}()
     end
-
-    print("\n", ss_dic)
 
     if !isempty(states.number_of_states)
         init_state_lines_f = filter(x -> !isnothing(x), init_state_lines)
         init_state_info = processing_initial_distribution(states.number_of_states, ss_dic, lines[sort(init_state_lines_f)])
     end
+
+    # Processing transition probability
+
+
 
 
 
@@ -294,12 +296,10 @@ function read_pomdp(filename::AbstractString)
     # end
 
     # m = TabularPOMDP(T, R, O, discount)
-    return init_state_info
+    return states, actions, type_reward, discount, observations, init_state_info
 end
 
 
-
-# Functions dealing with the initial distribution
 
 ######################## Main structures ########################
 
@@ -340,8 +340,8 @@ struct InitialStateParam{T}
                             # print(value_of_distribution)
                             # print("\n")
         # Length of value_of_distribution must coincide with N, and all elements of support_of_distribution must be smaller, or equal to, N
-        if size_of_states == 0 
-            new{T}(0, "", Set{Int64}([]), Vector{Float64}([]))
+        if isempty(type_of_distribution) 
+            new{T}(size_of_states, "", Set{Int64}([]), Vector{Float64}([]))
         elseif (length(value_of_distribution) != size_of_states) || (collect(support_of_distribution) |> maximum) > size_of_states
             error("BLABLA")
         elseif !isapprox(sum(value_of_distribution),1) || any(x -> (x > 1) || (x < 0),  value_of_distribution) # checking whether value_of_distribution is a valid probability distribution
@@ -351,7 +351,6 @@ struct InitialStateParam{T}
         end
     end
 end
-
 
 InitialStateParam() = InitialStateParam{Int64}(0, "", Set{Int64}([]), Vector{Float64}([])) 
 InitialStateParam(size_of_states::Int64) = InitialStateParam{Int64}(size_of_states, "", Set{Int64}([]), Vector{Float64}([])) 
@@ -477,6 +476,38 @@ end
 
 ################ Auxiliary functions ##################
 
+function remove_comments_and_white_space(file::AbstractVector{String})
+
+    processed_file = []
+
+    for line in file
+        without_comments = replace(line, r"#.*" => "") |> strip
+
+        if !isempty(without_comments)
+            push!(processed_file, without_comments)
+        end
+    end
+
+    admissible_strings = ["discount", "values", "states", "actions", "observations", "start", "start include", "start exclude", "T", "O", "R"]
+
+    for (index, line) in enumerate(processed_file)
+        # print(typeof(line), "\n")
+        tt_line = string(line)
+        # print(tt_line, "\n")
+        before_semicolon = get_before_semicolon(tt_line) |> strip
+        after_semicolon = get_after_semicolon(tt_line) |> strip
+
+        # print("($before_semicolon,$after_semicolon)", "\n")
+
+        if (before_semicolon in admissible_strings) && isempty(after_semicolon)
+            processed_file[index] = before_semicolon * ":" * processed_file[index + 1]
+            processed_file[index+1] = ""
+        end
+    end
+
+    return Vector{String}(filter(x -> !isempty(x), processed_file))
+end
+
 function get_before_semicolon(line::String)
     regex_before_semicolon = r"([^:]*):"
 
@@ -488,7 +519,12 @@ function get_after_semicolon(line::String)
     regex_after_semicolon = r":(.)*$"
 
     search_pattern = match(regex_after_semicolon, line)
-    return !isnothing(search_pattern) ? replace(search_pattern.match, r":+" => "") : "none-found"
+
+    if !isnothing(search_pattern)
+        return replace(search_pattern.match, r":+" => "")
+    else
+        return "none-found"
+    end
 end
 
 function read_ordinal_file(file_name::String; state_size = 20)
@@ -539,11 +575,6 @@ function dealing_with_partial_numbers(ordinal_dictionary::Dict{String, Int64}, i
     init_state = split(initial_state_param)
     state_size = length(ordinal_dictionary)
 
-    # print(init_state)
-    # print("\n")
-    # print(all(x -> x in values(ordinal_dictionary), init_state))
-    # print("\n")
-
     if all(x -> x in keys(ordinal_dictionary), init_state)
 
         support_of_distribution = Set{Int64}([ordinal_dictionary[key] for key in init_state])  
@@ -554,8 +585,6 @@ function dealing_with_partial_numbers(ordinal_dictionary::Dict{String, Int64}, i
     elseif all(x -> tryparse(Int64, x) in values(ordinal_dictionary), init_state)
 
         init_state = map(x -> parse(Int64, x), init_state)
-        # print(init_state)
-        # print("\n")
         support_of_distribution = Set{Int64}(init_state)
         value_of_distribution = (1/length(support_of_distribution))*sum(Diagonal(ones(state_size))[:,init_state], dims=2)
 
@@ -576,7 +605,7 @@ function check_preamble_fields(file_lines::Vector{String})
     length(file_lines) < 5 ? error(error_msg) : Nothing 
     
     for i in 1:5
-        search_pattern = get_before_semicolon(file_lines[i])
+        search_pattern = get_before_semicolon(file_lines[i]) |> strip
 
         if typeof(search_pattern) != Nothing
             compulsory_fields = setdiff(compulsory_fields, [search_pattern])
@@ -589,7 +618,7 @@ function check_preamble_fields(file_lines::Vector{String})
         end
     end
 
-    return organized_preamble, isempty(compulsory_fields) ? Nothing : error(error_msg)
+    return organized_preamble, isempty(compulsory_fields) ? Nothing : error("BLABLA")
 end
 
 function processing_preamble(preamble_config::Dict{String, Any})
@@ -597,12 +626,12 @@ function processing_preamble(preamble_config::Dict{String, Any})
     # checking discount syntax => it must be a float number
     entry = preamble_config["discount"]
     test_entry = tryparse(Float64, entry)
-    discount_param = [(typeof(test_entry) == Float64) && (0 < test_entry < 1) ? test_entry : error("BLABLA") ]
+    discount_param = [(typeof(test_entry) == Float64) && (0 <= test_entry <= 1) ? test_entry : error("BLABLA") ]
 
     # checking value syntax => either "reward" or "cost"
     entry = preamble_config["values"]
     entry = replace(entry, r"[\"+]|[\s+]" => "")
-    values_param = [(isequal(entry,"reward")) || (isequal(entry,"cost")) ? entry : error("BLABLA")]
+    values_param = [(isequal(entry,"reward")) || (isequal(entry,"cost") || isequal(entry, "rewards") || isequal(entry, "costs")) ? entry : error("BLABLA")]
 
     # checking actions syntax => either an integer or a collection of names
     actions_param = convert_to_date_structure("actions", preamble_config) 
@@ -755,43 +784,30 @@ end
 
 function processing_initial_distribution(number_of_states::Int64, name_of_states::Dict{String, Int64}, initial_state_ocurrences::Vector{String})
     # According to the grammar this can either be a number, a probability distribution over states, or strings (uniform or ordinal description of states)
-    # print(s₀_param)
-    print(number_of_states, "\n")
+
     initial_state_param = InitialStateParam(number_of_states)
     
     for line in initial_state_ocurrences
 
         type_init_state = get_before_semicolon(line)
-
+        param_init = get_after_semicolon(line) 
+       
         if isequal(type_init_state, "start")
             
-            param_init = get_after_semicolon(line)
-            # print(param_init)
-            # print("\n")
-            # print(number_of_states)
-            # print("\n")
-            # print(name_of_states)
-            # print("\n")
             initial_state_param = processing_initial_distribution_start(number_of_states, param_init, name_of_states)
 
         elseif isequal(type_init_state, "start include")
 
-            param_init = get_after_semicolon(line)
-            initial_state_param = processing_initial_distribution_start_include(state, param_init, name_of_states)
+            initial_state_param = processing_initial_distribution_start_include(initial_state_param, param_init, name_of_states)
             
         elseif isequal(type_init_state, "start exclude")
 
-            param_init = get_after_semicolon(line)
-            initial_state_param = processing_initial_distribution_start_exclude(state, param_init, name_of_states)
+            initial_state_param = processing_initial_distribution_start_exclude(initial_state_param, param_init, name_of_states)
         else
             error("BLABLA")
         end
     end
 
-    # print(initial_state_param)
-    # print("\n")
-
     return initial_state_param
 
-    # We will now process the include/exclude option. I THINK I NEED TO TURN THE PREVIOUS FUNCTION INTO AN AUXILIARY ONE
 end
