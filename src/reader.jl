@@ -373,70 +373,6 @@ end
 InitialStateParam() = InitialStateParam{Int64}(0, "", Set{Int64}([]), Vector{Float64}([])) 
 InitialStateParam(size_of_states::Int64) = InitialStateParam{Int64}(size_of_states, "", Set{Int64}([]), Vector{Float64}([])) 
 
-######### FUNCTIONS DEALING WITH PREAMBLE ###############
-
-function check_preamble_fields(file_lines::Vector{String})
-    compulsory_fields = Set(["discount", "values", "states", "actions", "observations"]) # compulsory fields according to the file format
-
-    organized_preamble = Dict{String, Any}()
-
-    length(file_lines) < 5 ? error(error_msg) : Nothing 
-    
-    for i in 1:5
-        # search_pattern = match(find_first_semicolon, file_lines[i]).match 
-        # search_pattern = replace(search_pattern, r":+" => "")
-        
-        search_pattern = get_before_semicolon(file_lines[i])
-
-        if typeof(search_pattern) != Nothing
-            compulsory_fields = setdiff(compulsory_fields, [search_pattern])
-            # print("Found: $search_pattern\n") 
-            
-            temp_match = get_after_semicolon(file_lines[i])
-            
-            # temp_match = match(text_after_semicolon,file[i]).match
-            # temp_match = replace(temp_match, r":+" => "")
-
-            # print("$temp_match\n")
-            
-            # temp_match != 0 ? Nothing : error(error_msg)
-
-            organized_preamble[search_pattern] = temp_match 
-        else
-            error(error_msg)
-        end
-    end
-
-    # print(compulsory_fields)
-
-    return organized_preamble, isempty(compulsory_fields) ? Nothing : error(error_msg)
-end
-
-function processing_preamble(preamble_config::Dict{String, Any})
-
-    # checking discount syntax => it must be a float number
-    entry = preamble_config["discount"]
-    test_entry = tryparse(Float64, entry)
-    discount_param = [(typeof(test_entry) == Float64) && (0 < test_entry < 1) ? test_entry : error("BLABLA") ]
-
-    # checking value syntax => either "reward" or "cost"
-    entry = preamble_config["values"]
-    entry = replace(entry, r"[\"+]|[\s+]" => "")
-    values_param = [(isequal(entry,"reward")) || (isequal(entry,"cost")) ? entry : error("BLABLA")]
-
-    # checking actions syntax => either an integer or a collection of names
-    actions_param = convert_to_date_structure("actions", preamble_config) 
-    
-    # checking states syntax => either an integer or a collection of names
-    states_param = convert_to_date_structure("states", preamble_config) 
-
-    # checking observation syntax => either an integer or a collection of names
-    observations_param = convert_to_date_structure("observations", preamble_config)
-
-    # IT IS MISSING TO TEST WHERE WE HAVE A VECTOR OF STRINGS HERE
-    return discount_param, values_param, ActionsParam(actions_param), StateParam(states_param), ObservationParam(observations_param) 
-end
-
 ######## GETTING THE LINES FOR AN OCCURENCE OF A STRING IN THE FILE ##################
 
 function get_all_occurences(source_file::Vector{String}, starting_line::Int64, key::String)
@@ -607,6 +543,7 @@ get_all_occurences(source_file::Vector{String}, multiple_keys::Vector{String}) =
 
 get_first_occurence(source_file::Vector{String}, starting_line::Int64, key::String) = !isnothing(get_all_occurences(source_file, starting_line, key)) ? minimum(get_all_occurences(source_file, starting_line, key) .-1 .+starting_line) : nothing
 get_first_occurence(source_file::Vector{String}, key::String) = get_first_occurence(source_file, 1, key) 
+get_first_occurence(source_file::Vector{String}, key::Vector{String}) = minimum(map(x->get_first_occurence(source_file,x),key))
 
 get_last_occurence(source_file::Vector{String}, starting_line::Int64, key::String) = !isnothing(get_all_occurences(source_file, starting_line, key)) ? maximum(get_all_occurences(source_file, starting_line, key) .-1 .+starting_line) : nothing
 get_last_occurence(source_file::Vector{String}, key::String) = get_last_occurence(source_file, 1, key) 
@@ -638,34 +575,58 @@ end
 
 ######### Auxiliary functions -- PREAMBLE ###############
 
+function get_between_lines(file_lines::Vector{String}) 
+    single_line = join(file_lines, " ")
+    return get_after_semicolon(single_line)
+end
+
 function check_preamble_fields(file_lines::Vector{String})
-    compulsory_fields = Set(["discount", "values", "states", "actions", "observations"]) # compulsory fields according to the file format
+    key_fields = ["discount", "values", "states", "actions", "observations"]
+    compulsory_fields = Set(key_fields) # compulsory fields according to the file format
 
-    organized_preamble = Dict{String, Any}()
-
-    # print(file_lines, "\n\n")
-
-    length(file_lines) < 5 ? error("BLABLA") : Nothing 
-    
-    for i in 1:5
-        search_pattern = get_before_semicolon(file_lines[i]) |> strip
-
-        if typeof(search_pattern) != Nothing
-            compulsory_fields = setdiff(compulsory_fields, [search_pattern])
-            
-            temp_match = get_after_semicolon(file_lines[i])
-            
-            organized_preamble[search_pattern] = temp_match 
+    for field in key_fields
+        if !isnothing(get_first_occurence(file_lines, field)) 
+            compulsory_fields = setdiff(compulsory_fields, [field])
         else
-            error("BLABLA")
+            error("Missing field $(field) in the file")
         end
     end
 
-    if !isempty(compulsory_fields)
-        print(compulsory_fields)
+    dict_scanning = Dict(field => get_first_occurence(file_lines, field) for field in key_fields)
+    sorted_fields = sort(collect(pairs(dict_scanning)), by=x->x[2])
+    # print(file_lines, "\n\n")
+    # print(sorted_fields, "\n")
+
+    organized_preamble = Dict{String, Any}() 
+
+    for (ii, (field, field_values)) in enumerate(sorted_fields)
+       
+        # print(field, " ", field_values, " ", ii, " ")
+
+        if ii + 1 <= length(sorted_fields)
+            if sorted_fields[ii+1][2] - field_values == 1
+                temp_match = get_after_semicolon(file_lines[field_values]) 
+                # print(temp_match,"\n")
+            else
+                range_spec = field_values:(sorted_fields[ii+1][2]-1)
+                temp_match = get_between_lines(file_lines[range_spec])
+            end
+        else
+            next_indices = get_first_occurence(file_lines, ["T", "O", "R"])
+            if next_indices - field_values == 1 
+                temp_match = get_after_semicolon(file_lines[field_values])
+            else
+                range_spec = field_values:(next_indices-1)
+                temp_match = get_between_lines(file_lines[range_spec])
+            end
+        end
+
+        organized_preamble[field] = temp_match 
     end
 
-    return organized_preamble, isempty(compulsory_fields) ? Nothing : error("BLABLA") 
+    # print(organized_preamble)
+
+    return organized_preamble, isempty(compulsory_fields) ? Nothing : error("BLABLA")
 end
 
 function processing_preamble(preamble_config::Dict{String, Any})
@@ -689,7 +650,7 @@ function processing_preamble(preamble_config::Dict{String, Any})
     # checking observation syntax => either an integer or a collection of names
     observations_param = convert_to_date_structure("observations", preamble_config)
 
-    print(actions_param, "\n")
+    # print(actions_param, "\n")
 
     # IT IS MISSING TO TEST WHERE WE HAVE A VECTOR OF STRINGS HERE
     return discount_param, values_param, ActionsParam(actions_param), StateParam(states_param), ObservationParam(observations_param) 
@@ -1030,7 +991,7 @@ function processing_transition_probability(number_of_states::Int64, number_of_ac
 
                 turn_into_number!(parsed_line, name_of_states, name_of_actions, [2], 4)
                 input = parse(Int64, parsed_line[2])
-                print(input, "\n")
+                # print(input, "\n")
 
                 # print(parsed_line, "\n")
                 if isequal(next_line, "uniform")
@@ -1056,7 +1017,7 @@ function processing_transition_probability(number_of_states::Int64, number_of_ac
 
                     matrix_lines = trans_prob_occurences[index + 1:index + number_of_states]
 
-                    print(matrix_lines, "\n")
+                    # print(matrix_lines, "\n")
 
                     if all(x -> !isnothing(tryparse.(Float64, split(x))), matrix_lines)
                         matrix_trans = hcat([parse.(Float64, split(row)) for row in matrix_lines]...)' 
