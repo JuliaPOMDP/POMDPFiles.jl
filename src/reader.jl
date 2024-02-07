@@ -480,6 +480,11 @@ end
 
 ################ Auxiliary functions ##################
 
+function testing_if_probability(prob::Vector{Float64})
+    between_0_1 = all(x -> 0 <= x <= 1, prob)
+    return (between_0_1 && (sum(prob) == 1)) ? true : false
+end
+
 function remove_comments_and_white_space(file::AbstractVector{String})
 
     processed_file = []
@@ -825,6 +830,7 @@ function turn_into_number!(parsed_line::Vector{String}, name_of_states::Dict{Str
 
     if length_vv == 4
         if !isempty(name_of_states)
+            print(name_of_states, "\n")
             if 3 in indices
                 parsed_line[3] = string(name_of_states[parsed_line[3]])  
             end
@@ -941,8 +947,37 @@ function processing_transition_probability(number_of_states::Int64, number_of_ac
                 end
             elseif length(parsed_line) == 3
                 # T: <action> : <start-state>
-                next_line = trans_prob_occurences[index + 1]
-                print(next_line)
+
+                number_wild_cars = count(x -> isequal(x, "*"), parsed_line)
+
+                if number_wild_cars == 0
+                    next_line =  string.(split(trans_prob_occurences[index + 1])) 
+                    print(next_line, "\n")
+                    if all(x -> !isnothing(tryparse(Float64, x)), next_line)
+                        prob = map(x -> parse(Float64, x), next_line)
+
+                        if testing_if_probability(prob) && (length(prob) == number_of_states)
+
+                            turn_into_number!(parsed_line, name_of_states, name_of_actions, [2, 3], 4) # I may have to chande this function. Last parameter may not be needed
+                            
+                            input = parse(Int64, parsed_line[2]) 
+                            current_state = parse(Int64, parsed_line[3])
+
+                            for (i, value_prob) in enumerate(prob)
+                                trans_prob[(current_state, input, i)] = value_prob 
+                            end
+
+                        else
+                            error("BLABLA")
+                        end
+                    else
+                        error("BLABLA")
+                    end
+                elseif number_wild_cars == 1
+                    print("TBI \n")
+                else
+                    error("Not implemented")
+                end
 
             elseif length(parsed_line) == 2
             else

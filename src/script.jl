@@ -1,8 +1,8 @@
 include("./reader.jl")
 
-file = open(readlines, "./../test/sources/mini-hall2.pomdp") |> remove_comments_and_white_space
+# file = open(readlines, "./../test/sources/mini-hall2.pomdp") |> remove_comments_and_white_space
 # file = open(readlines, "../test/sources/cheng-examples/cheng.D4-1.POMDP") |> remove_comments_and_white_space
-# file = open(readlines,"./../test/sources/pomdp-ex.pomdp") |> remove_comments_and_white_space
+file = open(readlines,"./../test/sources/pomdp-ex.pomdp") |> remove_comments_and_white_space
 # file = open(readlines, "./../test/sources/parr95.95.pomdp") |> remove_comments_and_white_space
 # file = open(readlines, "./../test/sources/fourth.POMDP") |> remove_comments_and_white_space
 
@@ -18,7 +18,7 @@ dic_states = Dict(string(name) => index for (index, name) in enumerate(states.na
 # print(dic_states, "\n")
 # print(file[lines_transition], "\n")
 
-aa = processing_transition_probability(states.number_of_states, actions.number_of_actions, dic_states, dic_action, file[lines_transition[1]:lines_transition[end]])
+aa = processing_transition_probability(states.number_of_states, actions.number_of_actions, dic_states, dic_action, file[lines_transition[1]:end])
 
 # read_pomdp("./../test/sources/mini-hall2.pomdp")
 

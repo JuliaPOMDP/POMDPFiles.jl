@@ -27,4 +27,6 @@ start exclude:
 
 T: east : warm : almost-cold 0.5  
 T: west : cold : * 9.7
+T: west : almost-cold
+0.1 0.1 0.1 0.1 0 0.6
 
