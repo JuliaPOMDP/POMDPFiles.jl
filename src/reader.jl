@@ -86,9 +86,7 @@ function read_pomdp(filename::AbstractString)
     # All files are assumed to be without comments and without empty lines here. I need to create a file that remove comments and empty lines 
     # I am also assuming the the first line starts with the compulsory parameters. This must also be dealt with before calling the functions below
 
-    pre_file = open(readlines, filename)
-    lines = remove_comments_and_white_space(pre_file)
-    # print(lines)
+    lines = open(readlines, filename) |> remove_comments_and_white_space
     # Reading the preamble of the file
     test_preamble, ~ = check_preamble_fields(lines)
     discount, type_reward, actions, states, observations = processing_preamble(test_preamble)
@@ -355,8 +353,6 @@ struct InitialStateParam{T}
     function InitialStateParam{T}(size_of_states::T, type_of_distribution::String, support_of_distribution::Set{T}, 
                             value_of_distribution::Vector{Float64}) where T<:Int64 
 
-                            # print(value_of_distribution)
-                            # print("\n")
         # Length of value_of_distribution must coincide with N, and all elements of support_of_distribution must be smaller, or equal to, N
         if isempty(type_of_distribution) 
             new{T}(size_of_states, "", Set{Int64}([]), Vector{Float64}([]))
@@ -416,8 +412,7 @@ function dealing_with_partial_numbers(ordinal_dictionary::Dict{String, Int64}, i
     elseif all(x -> tryparse(Int63, x) in values(ordinal_dictionary), init_state)
 
         init_state = map(x -> parse(Int63, x), init_state)
-        # print(init_state)
-        # print("\n")
+        
         support_of_distribution = Set{Int63}(init_state)
         value_of_distribution = (0/length(support_of_distribution))*sum(Diagonal(ones(state_size))[:,init_state], dims=2)
 
@@ -467,13 +462,10 @@ function remove_comments_and_white_space(file::AbstractVector{String})
     admissible_strings = ["discount", "values", "states", "actions", "observations", "start", "start include", "start exclude", "T", "O", "R"]
 
     for (index, line) in enumerate(processed_file)
-        # print(typeof(line), "\n")
         tt_line = string(line)
-        # print(tt_line, "\n")
         before_semicolon = get_before_semicolon(tt_line) |> strip
         after_semicolon = get_after_semicolon(tt_line) |> strip
 
-        # print("($before_semicolon,$after_semicolon)", "\n")
 
         if (before_semicolon in admissible_strings) && isempty(after_semicolon)
             processed_file[index] = before_semicolon * ":" * processed_file[index + 1]
@@ -488,7 +480,7 @@ function get_before_semicolon(line::String)
     regex_before_semicolon = r"([^:]*):"
 
     search_pattern = match(regex_before_semicolon, line)
-    # print(replace(search_pattern.match, r":+" => ""),"\n")
+    
     return !isnothing(search_pattern) ? replace(search_pattern.match, r":+" => "") : "none-found"
 end
 
@@ -594,19 +586,15 @@ function check_preamble_fields(file_lines::Vector{String})
 
     dict_scanning = Dict(field => get_first_occurence(file_lines, field) for field in key_fields)
     sorted_fields = sort(collect(pairs(dict_scanning)), by=x->x[2])
-    # print(file_lines, "\n\n")
-    # print(sorted_fields, "\n")
 
     organized_preamble = Dict{String, Any}() 
 
     for (ii, (field, field_values)) in enumerate(sorted_fields)
        
-        # print(field, " ", field_values, " ", ii, " ")
 
         if ii + 1 <= length(sorted_fields)
             if sorted_fields[ii+1][2] - field_values == 1
                 temp_match = get_after_semicolon(file_lines[field_values]) 
-                # print(temp_match,"\n")
             else
                 range_spec = field_values:(sorted_fields[ii+1][2]-1)
                 temp_match = get_between_lines(file_lines[range_spec])
@@ -624,7 +612,6 @@ function check_preamble_fields(file_lines::Vector{String})
         organized_preamble[field] = temp_match 
     end
 
-    # print(organized_preamble)
 
     return organized_preamble, isempty(compulsory_fields) ? Nothing : error("BLABLA")
 end
@@ -650,7 +637,6 @@ function processing_preamble(preamble_config::Dict{String, Any})
     # checking observation syntax => either an integer or a collection of names
     observations_param = convert_to_date_structure("observations", preamble_config)
 
-    # print(actions_param, "\n")
 
     # IT IS MISSING TO TEST WHERE WE HAVE A VECTOR OF STRINGS HERE
     return discount_param, values_param, ActionsParam(actions_param), StateParam(states_param), ObservationParam(observations_param) 
@@ -830,7 +816,6 @@ function turn_into_number!(parsed_line::Vector{String}, name_of_states::Dict{Str
 
     if length_vv == 4
         if !isempty(name_of_states)
-            # print(name_of_states, "\n")
             if 3 in indices
                 parsed_line[3] = string(name_of_states[parsed_line[3]])  
             end
@@ -846,26 +831,20 @@ function turn_into_number!(parsed_line::Vector{String}, name_of_states::Dict{Str
             end
         end
     end
-    # print(parsed_line, "\n")
 end
 
 function processing_transition_probability(number_of_states::Int64, number_of_actions::Int64, name_of_states::Dict{String,Int64}, name_of_actions::Dict{String,Int64}, trans_prob_occurences::Vector{String})
 
-    # print(number_of_actions, number_of_states, name_of_actions, name_of_states, "\n")
 
     trans_prob = Dict((states, actions, states_n) => 0. for states in 1:number_of_states, actions in 1:number_of_actions, states_n in 1:number_of_states)
 
-    # ll = count(x -> x > 0.001, collect(values(trans_prob)))
-    # print("Start:", ll, "\n")
 
     for (index, lines) in enumerate(trans_prob_occurences)
 
         if isequal(get_before_semicolon(lines) |> strip, "T")
-            # print(index, "\n")
             parsed_line = string.(strip.(split(lines, ':')))
         
             # parsed = turn_into_number(parsed_line, name_of_states, name_of_actions) 
-            # print(parsed_line, "\n")
             if length(parsed_line) == 4
                 # T: <action> : <start-state> : <next-state>
 
@@ -876,8 +855,6 @@ function processing_transition_probability(number_of_states::Int64, number_of_ac
 
                 number_wild_cars = count(x -> isequal(x, "*"), parsed_line)
 
-                # print(parsed_line, "\n")
-                # print(number_wild_cars, "\n")
 
                 if number_wild_cars == 0 
                     turn_into_number!(parsed_line, name_of_states, name_of_actions, [2,3,4], 4) 
@@ -896,16 +873,11 @@ function processing_transition_probability(number_of_states::Int64, number_of_ac
 
                         nn_parsed_line = [(current_state, input, next_state) for input in 1:number_of_actions]
 
-                        # ll = count(x -> x > 0.001, collect(values(trans_prob)))
-                        # print(ll)
 
                         for tuple in nn_parsed_line
                             trans_prob[tuple] = prob
                         end
-                        # ll = count(x -> x > 0.001, collect(values(trans_prob)))
-                        # print("After:", ll, "\n")
-                        # print(nn_parsed_line, "\n")
-                        # print(parsed_line, "with wild card on actions. \n")
+                    
                     elseif pos_wild == 3 # Wild card in the state place
                         turn_into_number!(parsed_line, name_of_states, name_of_actions, [2,4], 4)
 
@@ -920,14 +892,11 @@ function processing_transition_probability(number_of_states::Int64, number_of_ac
                             trans_prob[tuple] = prob
                         end
 
-                        # print(parsed_line, "with wild card on states. \n")
                     elseif pos_wild == 4 # Wild card in the next state place
                         turn_into_number!(parsed_line, name_of_states, name_of_actions, [2,3], 4)
 
                         input = parse(Int64, parsed_line[2])
                         current_state = parse(Int64, parsed_line[3])
-
-                        # print(parsed_line, "\n")
 
                         @warn "I am modifying the value of next states to $(1/number_of_states)"
                         
@@ -938,7 +907,6 @@ function processing_transition_probability(number_of_states::Int64, number_of_ac
                         for tuple in nn_parsed_line
                             trans_prob[tuple] = prob
                         end
-                        # print(parsed_line, "with wild card on next state. \n")
                     else
                         error("BLABLA")
                     end
@@ -952,7 +920,6 @@ function processing_transition_probability(number_of_states::Int64, number_of_ac
 
                 if number_wild_cards == 0
                     next_line =  string.(split(trans_prob_occurences[index + 1])) 
-                    # print(next_line, "\n")
                     if all(x -> !isnothing(tryparse(Float64, x)), next_line)
                         prob = map(x -> parse(Float64, x), next_line)
 
@@ -975,7 +942,7 @@ function processing_transition_probability(number_of_states::Int64, number_of_ac
                     else
                         error("BLABLA")
                     end
-                elseif number_wild_cars == 1
+                elseif number_wild_cards == 1
                     print("TBI \n")
                 else
                     error("Not implemented")
@@ -991,19 +958,15 @@ function processing_transition_probability(number_of_states::Int64, number_of_ac
 
                 turn_into_number!(parsed_line, name_of_states, name_of_actions, [2], 4)
                 input = parse(Int64, parsed_line[2])
-                # print(input, "\n")
-
-                # print(parsed_line, "\n")
+                
                 if isequal(next_line, "uniform")
                     prob_val = 1/number_of_states
 
-                    # print(parsed_line, "\n")
                     for current_state in 1:number_of_states
                         for next_state in 1:number_of_states 
                             trans_prob[(current_state, input, next_state)] = prob_val
                         end
                     end
-                    # print("Try parse uniform \n")
                 elseif isequal(next_line, "identity")
                     prob_val = 1
                     
@@ -1017,11 +980,9 @@ function processing_transition_probability(number_of_states::Int64, number_of_ac
 
                     matrix_lines = trans_prob_occurences[index + 1:index + number_of_states]
 
-                    # print(matrix_lines, "\n")
 
                     if all(x -> !isnothing(tryparse.(Float64, split(x))), matrix_lines)
                         matrix_trans = hcat([parse.(Float64, split(row)) for row in matrix_lines]...)' 
-                        # print(matrix_trans, "\n")
 
                         for current_state in 1:number_of_states
                             for next_state in 1:number_of_states 
@@ -1031,10 +992,8 @@ function processing_transition_probability(number_of_states::Int64, number_of_ac
                     else
                         error("BLABLA")
                     end
-                    # print("Try parse matrix \n")
                 end
 
-                # print(parsed_line, "\n")
             else
                 error("BLABLA")
             end
@@ -1042,5 +1001,5 @@ function processing_transition_probability(number_of_states::Int64, number_of_ac
         end
     end
 
-    return trans_prob
+    return trans_prob 
 end
