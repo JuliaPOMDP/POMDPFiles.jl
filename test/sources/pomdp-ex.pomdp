@@ -1,7 +1,7 @@
 discount: 0.1
 values: reward
 states: warm cold not-to-cold very-very-cold almost-cold ow-this-is-very-cold
-actions: 8 
+actions: north south east west 
 observations: warning more-warning 
 start: second-state fourth-state fifth-state third-state 
 start: 
@@ -25,7 +25,6 @@ start exclude:
 
 1 6 3
 
-T: north 
-0.1 0.8 0.1
-1.7 2.5 3.0
-0.2 0.6 0.2
+T: east : warm : almost-cold 0.5  
+T: west : cold : * 9.7
+

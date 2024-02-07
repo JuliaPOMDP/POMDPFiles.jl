@@ -18,7 +18,7 @@ start include: third-state
 start exclude: first-state
 
 T : * : I : hi-A 0.5
-T : * : I : lo-A 0.5
+ T : * : I : lo-A 0.5
 
 T : a : hi-A : C 1.0
 T : b : hi-A : minus1 1.0
@@ -36,9 +36,15 @@ T : a : D : lo-A 1.0
 T : b : D : I 1.0
 T : c : D : I 1.0
 
-T : * : plus1 : I 1.0
+ T : * : plus1 : I 1.0
 
-T : * : minus1 : I 1.0
+    T : * : minus1 : I 1.0
+
+T: a: *: hi-A 0.6
+T: b: * : lo-A 0.7
+
+T: a : hi-A: * 1.0
+T: b: lo-A: * 0.7
 
 O : * : I : I 1.0
 O : * : hi-A : A 1.0
