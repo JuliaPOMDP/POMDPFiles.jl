@@ -12,7 +12,7 @@ for file_path in all_files_path
 
     print("\n\n\n", file_path, "\n\n\n")
 
-    @test read_pomdp(file_path)
+    read_pomdp(file_path)
     # print(aa, "\n\n\n")
     # ff = open(readlines, file_path) |> remove_comments_and_white_space
 

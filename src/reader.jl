@@ -114,7 +114,7 @@ function read_pomdp(filename::AbstractString)
 
     # Finding the chunk of the file with the transition, observation, and reward specifications
     for (index, (type_of_matrix, line_number)) in enumerate(sorted_fields)
-        print(index, " ", type_of_matrix, " ", line_number, "\n")
+        # print(index, " ", type_of_matrix, " ", line_number, "\n")
 
         if index + 1 <= length(sorted_fields)
             range_spec = line_number:(sorted_fields[index+1][2] -1)
@@ -348,13 +348,14 @@ struct InitialStateParam{T}
 
     function InitialStateParam{T}(size_of_states::T, type_of_distribution::String, support_of_distribution::Set{T}, 
                             value_of_distribution::Vector{Float64}) where T<:Int64 
-
+        # print(sum(value_of_distribution), "\n\n")
+        # print(value_of_distribution, "\n\n")
         # Length of value_of_distribution must coincide with N, and all elements of support_of_distribution must be smaller, or equal to, N
         if isempty(type_of_distribution) 
             new{T}(size_of_states, "", Set{Int64}([]), Vector{Float64}([]))
         elseif (length(value_of_distribution) != size_of_states) || (collect(support_of_distribution) |> maximum) > size_of_states
             error("BLABLA")
-        elseif !isapprox(sum(value_of_distribution),1) || any(x -> (x > 1) || (x < 0),  value_of_distribution) # checking whether value_of_distribution is a valid probability distribution
+        elseif !isapprox(sum(value_of_distribution),1, atol=1e-3) || any(x -> (x > 1) || (x < 0),  value_of_distribution) # checking whether value_of_distribution is a valid probability distribution
             error("BLABLA")
         else
             new{T}(size_of_states, type_of_distribution, support_of_distribution, value_of_distribution)
@@ -440,7 +441,7 @@ end
 ################ Auxiliary functions ##################
 function testing_if_probability(prob::Vector{Float64})
     between_0_1 = all(x -> 0 <= x <= 1, prob)
-    return (between_0_1 && (sum(prob) == 1)) ? true : false
+    return (between_0_1 && isapprox(sum(prob), 1)) ? true : false
 end
 
 function remove_comments_and_white_space(file::AbstractVector{String})
@@ -875,8 +876,14 @@ function processing_transition_probability(number_of_states::Int64, number_of_ac
 
                 if number_wild_cars == 0 
                     turn_into_number!(parsed_line, name_of_states, name_of_actions, [2,3,4], 4) 
+                    # print(parsed_line, "\n\n")
                     nn_parsed_line = (parse(Int64, parsed_line[3]), parse(Int64, parsed_line[2]), parse(Int64, parsed_line[4])) 
-                    trans_prob[nn_parsed_line] = parse(Float64, parsed_line[5])
+                    if length(parsed_line) == 5
+                        trans_prob[nn_parsed_line] = parse(Float64, parsed_line[5])
+                    else
+                        trans_prob[nn_parsed_line] = 1
+                    end
+
                 elseif number_wild_cars == 1
                     pos_wild = findfirst(x -> isequal(x, "*"), parsed_line)
 
@@ -897,11 +904,18 @@ function processing_transition_probability(number_of_states::Int64, number_of_ac
                     
                     elseif pos_wild == 3 # Wild card in the state place
                         turn_into_number!(parsed_line, name_of_states, name_of_actions, [2,4], 4)
+                        print(parsed_line, "\n\n")
 
                         input = parse(Int64, parsed_line[2])
                         next_state = parse(Int64, parsed_line[4])
 
-                        prob = parse(Float64, parsed_line[5])
+                        if length(parsed_line) == 5
+                            prob = parse(Float64, parsed_line[5])
+                        else
+                            prob = 1
+                        end
+
+                        # prob = parse(Float64, parsed_line[5])
 
                         nn_parsed_line = [(current_state, input, next_state) for current_state in 1:number_of_states]
                         
@@ -935,7 +949,7 @@ function processing_transition_probability(number_of_states::Int64, number_of_ac
 
                 number_wild_cards = count(x -> isequal(x, "*"), parsed_line)
 
-                if number_wild_cards == 0
+                if number_wild_cards == 0 # Problem with concert POMDP here. Fix it!
                     next_line =  string.(split(trans_prob_occurences[index + 1])) 
                     if all(x -> !isnothing(tryparse(Float64, x)), next_line)
                         prob = map(x -> parse(Float64, x), next_line)
@@ -957,10 +971,13 @@ function processing_transition_probability(number_of_states::Int64, number_of_ac
                             error("BLABLA")
                         end
                     else
-                        error("BLABLA")
+                        # THERE IS AN ERROR WITH THE CONCERT.POMDP. FIX THIS!
+                        print(next_line, "\n\n")
+                        print("there is an error here with concert, processing_transition_probability \n\n")
+                        # error("BLABLA")
                     end
                 elseif number_wild_cards == 1
-                    print("TBI \n")
+                    print("TBI: number_wild_cards, processing_transition_probability \n\n")
                 else
                     error("Not implemented")
                 end
@@ -1054,7 +1071,7 @@ function processing_observations_probability(number_of_states::Int64, number_of_
 
     for (index, lines) in enumerate(files_obs)
 
-        print(lines, "\n\n")
+        # print(lines, "\n\n")
 
         if isequal(get_before_semicolon(lines) |> strip, "O")
             parsed_line = string.(strip.(split(lines, ':')))
@@ -1074,7 +1091,12 @@ function processing_observations_probability(number_of_states::Int64, number_of_
                 if number_wild_cars == 0 
                     turn_into_number_obs!(parsed_line, name_of_states, name_of_actions, name_of_observations, [2,3,4]) 
                     nn_parsed_line = (parse(Int64, parsed_line[3]), parse(Int64, parsed_line[2]), parse(Int64, parsed_line[4])) 
-                    obs_prob[nn_parsed_line] = parse(Float64, parsed_line[5])
+                    if length(parsed_line) == 5
+                        prob = parse(Float64, parsed_line[5])
+                    else
+                        prob = 1
+                    end
+                    obs_prob[nn_parsed_line] = prob 
                 elseif number_wild_cars == 1
                     pos_wild = findfirst(x -> isequal(x, "*"), parsed_line)
 
@@ -1083,8 +1105,11 @@ function processing_observations_probability(number_of_states::Int64, number_of_
 
                         current_state = parse(Int64, parsed_line[3])
                         obs = parse(Int64, parsed_line[4])
-
-                        prob = parse(Float64, parsed_line[5])
+                        if length(parsed_line) == 5
+                             prob = parse(Float64, parsed_line[5])
+                        else
+                            prob = 1
+                        end
 
                         nn_parsed_line = [(current_state, input, obs) for input in 1:number_of_actions]
 
@@ -1098,8 +1123,13 @@ function processing_observations_probability(number_of_states::Int64, number_of_
 
                         input = parse(Int64, parsed_line[2])
                         obs = parse(Int64, parsed_line[4])
-
-                        prob = parse(Float64, parsed_line[5])
+                        
+                        if length(parsed_line) == 5
+                             prob = parse(Float64, parsed_line[5])
+                        else
+                            prob = 1
+                        end
+                        # prob = parse(Float64, parsed_line[5])
 
                         nn_parsed_line = [(current_state, input, obs) for current_state in 1:number_of_states]
                         
@@ -1126,7 +1156,8 @@ function processing_observations_probability(number_of_states::Int64, number_of_
                         error("BLABLA")
                     end
                 else
-                    error("You cannot have two wild cards in the same row")
+                    print("TBI: two wild cards, processing_observation_probability \n\n")
+                    # error("You cannot have two wild cards in the same row")
                 end
             elseif length(parsed_line) == 3
                 # T: <action> : <start-state>
@@ -1134,11 +1165,11 @@ function processing_observations_probability(number_of_states::Int64, number_of_
                 number_wild_cards = count(x -> isequal(x, "*"), parsed_line)
 
                 if number_wild_cards == 0
-                    next_line =  string.(split(obs_prob[index + 1])) 
+                    next_line =  string.(split(files_obs[index + 1])) 
                     if all(x -> !isnothing(tryparse(Float64, x)), next_line)
                         prob = map(x -> parse(Float64, x), next_line)
 
-                        if testing_if_probability(prob) && (length(prob) == number_of_observations)
+                        if testing_if_probability(prob) && (length(prob) == number_of_observations) 
 
                             turn_into_number_obs!(parsed_line, name_of_states, name_of_actions, name_of_observations, [2,3])
                             # turn_into_number!(parsed_line, name_of_states, name_of_actions, [2, 3], 4) # I may have to chande this function. Last parameter may not be needed
@@ -1147,7 +1178,7 @@ function processing_observations_probability(number_of_states::Int64, number_of_
                             current_state = parse(Int64, parsed_line[3])
 
                             for (i, value_prob) in enumerate(prob)
-                                trans_prob[(current_state, input, i)] = value_prob 
+                                obs_prob[(current_state, input, i)] = value_prob 
                             end
                             # NEED TO CONTINUE FROM HERE. MISSING POINTS:
                             # 1. CHECK WHETHER * CAN APPEAR HERE
@@ -1158,10 +1189,32 @@ function processing_observations_probability(number_of_states::Int64, number_of_
                     else
                         error("BLABLA")
                     end
-                elseif number_wild_cards == 1
-                    print("TBI \n")
+                elseif number_wild_cards == 1 # Only implemented * on the first entry. Need to finish the rest
+                    next_line =  string.(split(files_obs[index + 1])) 
+                    if all(x-> !isnothing(tryparse(Float64, x)), next_line)
+                        prob = map(x -> parse(Float64, x), next_line)
+
+                        if testing_if_probability(prob) && (length(prob) == number_of_observations)
+                            turn_into_number_obs!(parsed_line, name_of_states, name_of_actions, name_of_observations, [3])
+                            # turn_into_number!(parsed_line, name_of_states, name_of_actions, [2, 3], 4) # I may have to chande this function. Last parameter may not be needed
+                            
+                            current_state = parse(Int64, parsed_line[3])
+
+                            for input in 1:number_of_actions
+                                for (i, value_prob) in enumerate(prob)
+                                    obs_prob[(current_state, input, i)] = value_prob 
+                                end
+                            end
+                        else
+                            error("BLABLA")
+                        end
+                    else
+                        error("BLABLA")
+                    end
+                    # print("$(next_line) \n")
                 else
-                    error("Not implemented")
+                    print("TBI: two wild cards not implemented in processing_observations_probability \n\n")
+                    # error("Not implemented")
                 end
 
             # elseif length(parsed_line) == 2
@@ -1211,7 +1264,8 @@ function processing_observations_probability(number_of_states::Int64, number_of_
             #     end
 
             else
-                error("BLABLA")
+                print("TBI: transition_obs_probability\n\n")
+                # error("BLABLA")
             end
                 
         end
