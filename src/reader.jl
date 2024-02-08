@@ -851,12 +851,47 @@ function turn_into_number!(parsed_line::Vector{String}, name_of_states::Dict{Str
     end
 end
 
-function get_transition_prob_number_same_line()
-    print("Hello \n\n")
+function get_transition_prob_number_same_line!(current_state, input, prob, trans_prob, number_of_states)
+
+    # print("I am in this function \n\n")
+
+    if all(map(x -> !isnothing(tryparse(Float64,x)), prob)) && (length(prob) == number_of_states)
+        prob = map(x->parse(Float64, x), prob)
+        if testing_if_probability(prob)
+            for (index, next_state) in enumerate(1:number_of_states)
+                trans_prob[(current_state,input,next_state)] = prob[index]
+            end
+        else
+            error("BLABLA")
+        end
+    else
+        error("BLABLA")
+    end
 end
 
-function get_transition_prob_next_line()
-    print("Hello! \n\n")
+function get_transition_prob_next_line!(current_state::Int64, input::Int64, trans_prob::Dict{Tuple{Int64, Int64, Int64}, Float64}, index::Int64, number_of_states::Int64, files_trans::Vector{String})
+
+    next_line =  string.(split(files_trans[index + 1])) 
+
+    if all(x -> !isnothing(tryparse(Float64, x)), next_line)
+        prob = map(x -> parse(Float64, x), next_line)
+
+        if testing_if_probability(prob) && (length(prob) == number_of_states)
+
+            for (next_state, value_prob) in enumerate(prob)
+                trans_prob[(current_state, input, next_state)] = value_prob 
+            end
+            # NEED TO CONTINUE FROM HERE. MISSING POINTS:
+            # 1. CHECK WHETHER * CAN APPEAR HERE
+            # 2. ADD IDENTITY AND UNIFORM SETTING
+        else
+            error("BLABLA")
+        end
+    end
+end
+
+function get_transition_prob_matrix!()
+    print("Hello!")
 end
 
 
@@ -962,67 +997,92 @@ function processing_transition_probability(number_of_states::Int64, number_of_ac
 
                 if length(checking_third_param) == 1 # The transition probability will be on the next line
                     number_wild_cards = count(x -> isequal(x, "*"), parsed_line)
+                    
+                    if number_wild_cards == 0 
+                        turn_into_number!(parsed_line, name_of_states, name_of_actions, [2,3], 4) # I may have to chande this function. Last parameter may not be needed
+            
+                        input = parse(Int64, parsed_line[2]) 
+                        current_state = parse(Int64, parsed_line[3])
 
-                    if number_wild_cards == 0 # Problem with concert POMDP here. Fix it!
-                        # I am now creating a function to replace the code below
-                        next_line =  string.(split(trans_prob_occurences[index + 1])) 
-                        if all(x -> !isnothing(tryparse(Float64, x)), next_line)
-                            prob = map(x -> parse(Float64, x), next_line)
+                        get_transition_prob_next_line!(current_state, input, trans_prob, index, number_of_states, trans_prob_occurences)
+                    elseif number_wild_cards == 1
+                        
+                        if isequal(parsed_line[2], "*")
+                            turn_into_number!(parsed_line, name_of_states, name_of_actions, [3], 4)
 
-                            if testing_if_probability(prob) && (length(prob) == number_of_states)
+                            current_state = parse(Int64, parsed_line[3])
 
-                                turn_into_number!(parsed_line, name_of_states, name_of_actions, [2, 3], 4) # I may have to chande this function. Last parameter may not be needed
-                                
-                                input = parse(Int64, parsed_line[2]) 
-                                current_state = parse(Int64, parsed_line[3])
+                            for input in 1:number_of_actions
+                                get_transition_prob_next_line!(current_state, input, trans_prob, index, number_of_states, trans_prob_occurences)
+                            end
+                        elseif isequal(parsed_line[3], "*")
+                            turn_into_number!(parsed_line, name_of_states, name_of_actions, [2], 4)
 
-                                for (i, value_prob) in enumerate(prob)
-                                    trans_prob[(current_state, input, i)] = value_prob 
-                                end
-                                # NEED TO CONTINUE FROM HERE. MISSING POINTS:
-                                # 1. CHECK WHETHER * CAN APPEAR HERE
-                                # 2. ADD IDENTITY AND UNIFORM SETTING
-                            else
-                                error("BLABLA")
+                            input = parse(Int64, parsed_line[2]) 
+
+                            for current_state in 1:number_of_states
+                                get_transition_prob_next_line!(current_state, input, trans_prob, index, number_of_states, trans_prob_occurences)
                             end
                         else
-                            # THERE IS AN ERROR WITH THE CONCERT.POMDP. FIX THIS!
-                            # print(next_line, "\n\n")
-                            print("there is an error here with concert, processing_transition_probability \n\n")
-                            # error("BLABLA")
+                            error("BLABLA")
                         end
-                    elseif number_wild_cards == 1
-                        print(parsed_line, "\n\n")
-                        print("TBI: number_wild_cards, processing_transition_probability \n\n")
+                    elseif number_wild_cards == 2
+                        for current_state in 1:number_of_states, input in 1:number_of_actions
+                            get_transition_prob_next_line!(current_state, input, trans_prob, index, number_of_states, trans_prob_occurences) 
+                        end
                     else
-                        error("Not implemented")
+                        print("TBI: cannot parse this line")
+                        # error("Not implemented")
                     end
                 else # the transition probability will be given in the same line
                     parsed_line[3] = ""
                     parsed_line = filter(x -> !isempty(x), parsed_line)
                     map(x -> push!(parsed_line,x), checking_third_param)
-                    # print(parsed_line, "\n\n")
-                    turn_into_number!(parsed_line, name_of_states, name_of_actions, [2,3], 4)
-                    # print(parsed_line, "\n\n")
 
-                    input = parse(Int64, parsed_line[2])
-                    current_state = parse(Int64, parsed_line[3])
-
+                    number_wild_cards = count(x -> isequal(x, "*"), parsed_line)
+                    
                     prob = strip(parsed_line[4]) |> split
+                    print(number_wild_cards, "\n\n")
 
-                    if all(map(x -> !isnothing(tryparse(Float64,x)), prob)) && (length(prob) == number_of_states)
-                        prob = map(x->parse(Float64, x), prob)
-                        if testing_if_probability(prob)
-                            for (index, next_state) in enumerate(1:number_of_states)
-                                trans_prob[(current_state,input,next_state)] = prob[index]
+                    if number_wild_cards == 0
+                        turn_into_number!(parsed_line, name_of_states, name_of_actions, [2,3], 4)
+
+                        input = parse(Int64, parsed_line[2])
+                        current_state = parse(Int64, parsed_line[3])
+
+                        get_transition_prob_number_same_line!(current_state, input, prob, trans_prob, number_of_states)
+
+                    elseif number_wild_cards == 1
+                        if isequal(parsed_line[2], "*")
+                            # print(parsed_line, "\n\n")
+                            turn_into_number!(parsed_line, name_of_states, name_of_actions, [3], 4)
+
+                            current_state = parse(Int64, parsed_line[3])
+
+                            for input in 1:number_of_actions
+                                get_transition_prob_number_same_line!(current_state, input, prob, trans_prob, number_of_states)
+                            end
+
+                        elseif isequal(parsed_line[3], "*")
+                            turn_into_number!(parsed_line, name_of_states, name_of_actions, [2], 4)
+
+                            input = parse(Int64, parsed_line[2])
+
+                            for current_state in 1:number_of_states
+                                get_transition_prob_number_same_line!(current_state, input, prob, trans_prob, number_of_states)
                             end
                         else
                             error("BLABLA")
                         end
-                        # print(prob, "\n\n")
+
+                    elseif number_wild_cards == 2
+                        for current_state = 1:number_of_states, input in 1:number_of_actions
+                            get_transition_prob_number_same_line!(current_state, input, prob, trans_prob, number_of_states)
+                        end
                     else
-                        error("BLABLA")
+                        print("TBI: transition_prob. Number of wild cards not implemented")
                     end
+                    
                 end
 
             elseif length(parsed_line) == 2 # NEED TO ADD WILD CARDS HERE
