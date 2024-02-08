@@ -58,4 +58,3 @@ O : * : minus1 : minus1 1.0
 # non-negative rewards
 R: * : plus1 : * : * 2.0
 R: * : minus1 : * : * 0.0
-

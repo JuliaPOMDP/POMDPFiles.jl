@@ -107,80 +107,68 @@ function read_pomdp(filename::AbstractString)
 
     # Processing transition probability
 
-    # trans_prob_lines = get_all_occurences(lines, "T")
-    # transition_prob = processing_transition_prob()
+    sorted_fields = order_of_transition_reward_observation(lines, 1)
+    # print(sorted_fields[1][2])
+    files_transition = []
+    files_obs = []
+
+    # Finding the chunk of the file with the transition, observation, and reward specifications
+    for (index, (type_of_matrix, line_number)) in enumerate(sorted_fields)
+        print(index, " ", type_of_matrix, " ", line_number, "\n")
+
+        if index + 1 <= length(sorted_fields)
+            range_spec = line_number:(sorted_fields[index+1][2] -1)
+            if isequal(type_of_matrix, "T")
+                # print(typeof(lines))
+                files_transition = lines[range_spec]
+                # print("\n\n", files_transition, "\n\n")
+            end
+            if isequal(type_of_matrix, "O")
+                # print(typeof(lines))
+                files_obs = lines[range_spec]
+                # print("\n\n", files_obs, "\n\n")
+            end
+            if isequal(type_of_matrix, "R")
+                # print(typeof(lines))
+                files_values = lines[range_spec]
+                # print("\n\n", files_values, "\n\n")
+            end
+        else
+            range_spec = (line_number:length(lines))
+            if isequal(type_of_matrix, "T")
+                # print(typeof(lines))
+                files_transition = lines[range_spec]
+                # print("\n\n", files_transition, "\n\n")
+            end
+            if isequal(type_of_matrix, "O")
+                # print(typeof(lines))
+                files_obs = lines[range_spec]
+                # print("\n\n", files_obs, "\n\n")
+            end
+            if isequal(type_of_matrix, "R")
+                # print(typeof(lines))
+                files_values = lines[range_spec]
+                # print("\n\n", files_values, "\n\n")
+            end
+        end
+    end
+
+    # print(typeof(files_transition), "\n\n")
+    # print(files_transition, "\n\n")
+
+    dic_action = Dict(string(name) => index for (index, name) in enumerate(actions.names_of_actions))
+    dic_states = Dict(string(name) => index for (index, name) in enumerate(states.names_of_states))
+    dic_obs = Dict(string(name) => index for (index, name) in enumerate(observations.names_of_observations))
+
+        
+    transition_prob = processing_transition_probability(states.number_of_states, actions.number_of_actions, dic_states, dic_action, files_transition)
+
+    obs_prob = processing_observations_probability(states.number_of_states, actions.number_of_actions, observations.number_of_observations, dic_states, dic_action, dic_obs, files_obs)
+
+    return transition_prob, obs_prob
 
 
 
-
-
-    # T = zeros(num_states, num_actions, num_states)
-    # O = zeros(num_observations, num_actions, num_states)
-    # R = zeros(num_states, num_actions)
-
-    # ind1 = 0
-    # ind2 = 0
-    # ind3 = 0
-
-    # if length(T_lines) > 0
-    #     if length(findall(x->x==':', lines[T_lines[1]])) == 3
-    #         for t in T_lines
-    #             l = replace(lines[t], ':'=>' ')
-    #             line = split(l, ' ')
-    #             line = collect(strip(i) for i in line)
-    #             deleteat!(line, findall(x->x=="", line))
-    #             if line[3] == "*"
-    #                 ind1 = collect(1:length(states))
-    #             else
-    #                 ind1 = findall(x->x==line[3], states)
-    #             end
-    #             if line[2] == "*"
-    #                 ind2 = collect(1:length(actions))
-    #             else
-    #                 ind2 = findall(x->x==line[2], actions)
-    #             end
-    #             if line[4] == "*"
-    #                 ind3 = collect(1:length(states))
-    #             else
-    #                 ind3 = findall(x->x==line[4], states)
-    #             end
-    #             T[ind3, ind2, ind1] .= parse(Float64, line[5])
-    #         end
-    #     elseif length(findall(x->x==':', lines[T_lines[1]])) == 2
-    #         for t in T_lines
-    #             l = t+1
-    #             act = strip(split(lines[t], ':')[2])
-    #             st = strip(split(lines[t], ':')[3])
-    #             i = findfirst(x->x==act, actions)
-    #             j = findfirst(x->x==st, states)
-    #             T[:,i,j] = collect((parse(Float64, m.match) for m = eachmatch(REGEX_FLOATING_POINT, lines[l])))
-    #         end
-    #     else
-    #         for t in T_lines
-    #             l = t+1
-    #             id = findall(strip(lines[l]), "identity")
-    #             un = findall(strip(lines[l]), "uniform")
-    #             act = strip(split(lines[t], ':')[2])
-    #             i = findfirst(x->x==act, actions)
-    #             if length(id) > 0
-    #                 for j in 1:num_states
-    #                     T[j,i,j] = 1
-    #                     l += 1
-    #                 end
-    #             elseif length(un) > 0
-    #                 for j in 1:num_states
-    #                     T[:,i,j] = ones(num_states)./num_states
-    #                     l += 1
-    #                 end
-    #             else
-    #                 for j in 1:num_states
-    #                     T[:,i,j] = collect((parse(Float64, m.match) for m = eachmatch(REGEX_FLOATING_POINT, lines[l])))
-    #                     l += 1
-    #                 end
-    #             end
-    #         end
-    #     end
-    # end
 
     # if length(O_lines) > 0
     #     if length(findall(x->x==':', lines[O_lines[1]])) == 3
@@ -297,7 +285,7 @@ function read_pomdp(filename::AbstractString)
     # end
 
     # m = TabularPOMDP(T, R, O, discount)
-    return states, actions, type_reward, discount, observations, init_state_info
+    # return states, actions, type_reward, discount, observations, init_state_info
 end
 
 
@@ -340,7 +328,15 @@ struct ObservationParam
     number_of_observations::Int
 end
 
-ObservationParam(number_of_observations::Int) = ObservationParam([],number_of_observations)
+function ObservationParam(number_of_observations::Int)
+    @warn "Defining the states names from 0 to $(number_of_observations-1)"
+    names_of_observations = [string(i) for i in 0:(number_of_observations-1)]
+    
+    return ObservationParam(names_of_observations, number_of_observations)
+end
+
+
+# ObservationParam(number_of_observations::Int) = ObservationParam([],number_of_observations)
 ObservationParam(names_of_observations::Vector{SubString{String}}) = ObservationParam(names_of_observations, length(names_of_observations))
 
 struct InitialStateParam{T}
@@ -535,7 +531,20 @@ get_all_occurences(source_file::Vector{String}, multiple_keys::Vector{String}) =
 
 get_first_occurence(source_file::Vector{String}, starting_line::Int64, key::String) = !isnothing(get_all_occurences(source_file, starting_line, key)) ? minimum(get_all_occurences(source_file, starting_line, key) .-1 .+starting_line) : nothing
 get_first_occurence(source_file::Vector{String}, key::String) = get_first_occurence(source_file, 1, key) 
-get_first_occurence(source_file::Vector{String}, key::Vector{String}) = minimum(map(x->get_first_occurence(source_file,x),key))
+
+function get_first_occurence(source_file::Vector{String}, key::Vector{String}) 
+
+    temp_res = map(x->get_first_occurence(source_file, x), key)
+
+    if all(x->isnothing(x), temp_res)
+        return nothing
+    elseif any(x->!isnothing(x), temp_res) 
+        return minimum(filter(x->!isnothing(x), temp_res))
+    else
+        error("BLABLA")
+    end
+
+end
 
 get_last_occurence(source_file::Vector{String}, starting_line::Int64, key::String) = !isnothing(get_all_occurences(source_file, starting_line, key)) ? maximum(get_all_occurences(source_file, starting_line, key) .-1 .+starting_line) : nothing
 get_last_occurence(source_file::Vector{String}, key::String) = get_last_occurence(source_file, 1, key) 
@@ -563,6 +572,14 @@ function dealing_with_partial_numbers(ordinal_dictionary::Dict{String, Int64}, i
     else
         return nothing, nothing
     end
+end
+
+function order_of_transition_reward_observation(file_lines::Vector{String}, start_line::Int64) 
+    key_field = ["T", "O", "R"]
+    dict_scanning = Dict(field => get_first_occurence(file_lines, field) for field in key_field)
+    sorted_fields = sort(collect(pairs(dict_scanning)), by=x->x[2])
+
+    return sorted_fields
 end
 
 ######### Auxiliary functions -- PREAMBLE ###############
@@ -600,7 +617,7 @@ function check_preamble_fields(file_lines::Vector{String})
                 temp_match = get_between_lines(file_lines[range_spec])
             end
         else
-            next_indices = get_first_occurence(file_lines, ["T", "O", "R"])
+            next_indices = get_first_occurence(file_lines, ["T", "O", "R", "start", "start include", "start exclude"])
             if next_indices - field_values == 1 
                 temp_match = get_after_semicolon(file_lines[field_values])
             else
@@ -1002,4 +1019,203 @@ function processing_transition_probability(number_of_states::Int64, number_of_ac
     end
 
     return trans_prob 
+end
+
+################ Auxiliary functions -- Observation probability ################## 
+
+function turn_into_number_obs!(parsed_line::Vector{String}, name_of_states::Dict{String, Int64}, name_of_actions::Dict{String, Int64}, name_of_obs::Dict{String, Int64}, indices::Vector{Int64})
+
+    # the index parameter serves to select whether or not the entry is allowed to be substituted. This is essential to deal with the wild card
+
+    if !isempty(name_of_states)
+        if 3 in indices
+            parsed_line[3] = string(name_of_states[parsed_line[3]])  
+        end
+    end
+
+    if !isempty(name_of_obs)
+        if 4 in indices
+            parsed_line[4] = string(name_of_obs[parsed_line[4]]) 
+        end
+    end
+
+    if !isempty(name_of_actions)
+        if 2 in indices
+            parsed_line[2] = string(name_of_actions[parsed_line[2]])
+        end
+    end
+end
+
+
+function processing_observations_probability(number_of_states::Int64, number_of_actions::Int64, number_of_observations::Int64, name_of_states::Dict{String,Int64}, name_of_actions::Dict{String,Int64}, name_of_observations::Dict{String, Int64}, files_obs::Vector{String})
+
+    obs_prob = Dict((states, actions, observations) => 0. for states in 1:number_of_states, actions in 1:number_of_actions, observations in 1:number_of_observations)
+
+
+    for (index, lines) in enumerate(files_obs)
+
+        print(lines, "\n\n")
+
+        if isequal(get_before_semicolon(lines) |> strip, "O")
+            parsed_line = string.(strip.(split(lines, ':')))
+        
+            # parsed = turn_into_number(parsed_line, name_of_states, name_of_actions) 
+            if length(parsed_line) == 4
+                # T: <action> : <start-state> : <next-state>
+
+                temp_str = string.(split(parsed_line[4]))
+                parsed_line[4] = ""
+                parsed_line = filter(x->!isempty(x), parsed_line)
+                map(x->push!(parsed_line, x), temp_str)
+
+                number_wild_cars = count(x -> isequal(x, "*"), parsed_line)
+
+
+                if number_wild_cars == 0 
+                    turn_into_number_obs!(parsed_line, name_of_states, name_of_actions, name_of_observations, [2,3,4]) 
+                    nn_parsed_line = (parse(Int64, parsed_line[3]), parse(Int64, parsed_line[2]), parse(Int64, parsed_line[4])) 
+                    obs_prob[nn_parsed_line] = parse(Float64, parsed_line[5])
+                elseif number_wild_cars == 1
+                    pos_wild = findfirst(x -> isequal(x, "*"), parsed_line)
+
+                    if pos_wild == 2 # Wild card in the action place
+                        turn_into_number_obs!(parsed_line, name_of_states, name_of_actions, name_of_observations, [3,4])
+
+                        current_state = parse(Int64, parsed_line[3])
+                        obs = parse(Int64, parsed_line[4])
+
+                        prob = parse(Float64, parsed_line[5])
+
+                        nn_parsed_line = [(current_state, input, obs) for input in 1:number_of_actions]
+
+
+                        for tuple in nn_parsed_line
+                            obs_prob[tuple] = prob
+                        end
+                    
+                    elseif pos_wild == 3 # Wild card in the state place
+                        turn_into_number_obs!(parsed_line, name_of_states, name_of_actions, name_of_observations, [2,4])
+
+                        input = parse(Int64, parsed_line[2])
+                        obs = parse(Int64, parsed_line[4])
+
+                        prob = parse(Float64, parsed_line[5])
+
+                        nn_parsed_line = [(current_state, input, obs) for current_state in 1:number_of_states]
+                        
+                        for tuple in nn_parsed_line
+                            obs_prob[tuple] = prob
+                        end
+
+                    elseif pos_wild == 4 # Wild card in the next state place
+                        turn_into_number_obs!(parsed_line, name_of_states, name_of_actions, name_of_observations, [2,3])
+
+                        input = parse(Int64, parsed_line[2])
+                        current_state = parse(Int64, parsed_line[3])
+
+                        @warn "I am modifying the value of next states to $(1/number_of_observations)"
+                        
+                        prob = 1/number_of_observations
+
+                        nn_parsed_line = [(current_state, input, obs) for obs in 1:number_of_observations]
+                        
+                        for tuple in nn_parsed_line
+                            obs_prob[tuple] = prob
+                        end
+                    else
+                        error("BLABLA")
+                    end
+                else
+                    error("You cannot have two wild cards in the same row")
+                end
+            elseif length(parsed_line) == 3
+                # T: <action> : <start-state>
+
+                number_wild_cards = count(x -> isequal(x, "*"), parsed_line)
+
+                if number_wild_cards == 0
+                    next_line =  string.(split(obs_prob[index + 1])) 
+                    if all(x -> !isnothing(tryparse(Float64, x)), next_line)
+                        prob = map(x -> parse(Float64, x), next_line)
+
+                        if testing_if_probability(prob) && (length(prob) == number_of_observations)
+
+                            turn_into_number_obs!(parsed_line, name_of_states, name_of_actions, name_of_observations, [2,3])
+                            # turn_into_number!(parsed_line, name_of_states, name_of_actions, [2, 3], 4) # I may have to chande this function. Last parameter may not be needed
+                            
+                            input = parse(Int64, parsed_line[2]) 
+                            current_state = parse(Int64, parsed_line[3])
+
+                            for (i, value_prob) in enumerate(prob)
+                                trans_prob[(current_state, input, i)] = value_prob 
+                            end
+                            # NEED TO CONTINUE FROM HERE. MISSING POINTS:
+                            # 1. CHECK WHETHER * CAN APPEAR HERE
+                            # 2. ADD IDENTITY AND UNIFORM SETTING
+                        else
+                            error("BLABLA")
+                        end
+                    else
+                        error("BLABLA")
+                    end
+                elseif number_wild_cards == 1
+                    print("TBI \n")
+                else
+                    error("Not implemented")
+                end
+
+            # elseif length(parsed_line) == 2
+            #     # Need to check whether it is a matrix, identity, or uniform
+            #     if (index + 1) > length(trans_prob_occurences)
+            #         error("BLABLA")
+            #     end
+
+            #     next_line = trans_prob_occurences[index + 1] |> strip
+
+            #     turn_into_number!(parsed_line, name_of_states, name_of_actions, [2], 4)
+            #     input = parse(Int64, parsed_line[2])
+                
+            #     if isequal(next_line, "uniform")
+            #         prob_val = 1/number_of_states
+
+            #         for current_state in 1:number_of_states
+            #             for next_state in 1:number_of_states 
+            #                 trans_prob[(current_state, input, next_state)] = prob_val
+            #             end
+            #         end
+            #     elseif isequal(next_line, "identity")
+            #         prob_val = 1
+                    
+            #         for current_state in 1:number_of_states
+            #             trans_prob[(current_state, input, current_state)] = prob_val
+            #         end
+            #     else
+            #         if index + number_of_states > length(trans_prob_occurences)
+            #             error("BLABLA")
+            #         end
+
+            #         matrix_lines = trans_prob_occurences[index + 1:index + number_of_states]
+
+
+            #         if all(x -> !isnothing(tryparse.(Float64, split(x))), matrix_lines)
+            #             matrix_trans = hcat([parse.(Float64, split(row)) for row in matrix_lines]...)' 
+
+            #             for current_state in 1:number_of_states
+            #                 for next_state in 1:number_of_states 
+            #                     trans_prob[(current_state, input, next_state)] = matrix_trans[current_state, next_state]
+            #                 end
+            #             end
+            #         else
+            #             error("BLABLA")
+            #         end
+            #     end
+
+            else
+                error("BLABLA")
+            end
+                
+        end
+    end
+
+    return obs_prob 
 end

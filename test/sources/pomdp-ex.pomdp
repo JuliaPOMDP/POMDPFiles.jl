@@ -44,7 +44,7 @@ T: east
 T: north
  		identity
 
-O: nothing
+O: north : warm : warning 0.5 
 
 R: I am not sure
 
