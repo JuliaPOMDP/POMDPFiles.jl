@@ -272,9 +272,6 @@ function read_pomdp(filename::AbstractString)
     # return states, actions, type_reward, discount, observations, init_state_info
 end
 
-
-
-
 ######################## Main structures ########################
 
 struct ActionsParam 
@@ -863,11 +860,12 @@ function get_transition_prob_next_line!(current_state::Int64, input::Int64, tran
                 trans_prob[(current_state, input, next_state)] = value_prob 
             end
             # NEED TO CONTINUE FROM HERE. MISSING POINTS:
-            # 1. CHECK WHETHER * CAN APPEAR HERE
             # 2. ADD IDENTITY AND UNIFORM SETTING
         else
             error("BLABLA")
         end
+    else
+        error("BLABLA")
     end
 end
 
@@ -903,6 +901,7 @@ function get_transition_prob_matrix!(trans_prob::Any, input::Int64, number_of_st
         if all(x -> !isnothing(tryparse.(Float64, split(x))), matrix_lines)
 
             matrix_trans = hcat([parse.(Float64, split(row)) for row in matrix_lines]...)' 
+
             for current_state in 1:number_of_states
                 if testing_if_probability(matrix_trans[current_state,:])
                     for next_state in 1:number_of_states 
@@ -932,7 +931,6 @@ function processing_transition_probability(number_of_states::Int64, number_of_ac
         if isequal(get_before_semicolon(lines) |> strip, "T")
             parsed_line = string.(strip.(split(lines, ':')))
 
-            # parsed = turn_into_number(parsed_line, name_of_states, name_of_actions) 
             if length(parsed_line) == 4 # NEED TO IMPLEMENT NUMBER IN THE NEXT LINE
                 # T: <action> : <start-state> : <next-state>
 
@@ -1133,7 +1131,7 @@ end
 ################ Auxiliary functions -- Observation probability ################## 
 
                     # Input: files_obs, number_of_states, number_of_actions, number_of_observations, parsed_line
-function get_observation_matrix!(obs_prob::Any, parsed_line::Any, index::Int64, number_of_states::Int64, number_of_observations::Int64, name_of_states::Dict{String,Int64}, name_of_actions::Dict{String,Int64}, name_of_observations::Dict{String,Int64}, files_obs::Vector{String})
+function get_observation_matrix!(obs_prob::Any, input::Int64, number_of_states::Int64, number_of_observations::Int64, index::Int64, files_obs::Vector{String})
     # Need to check whether it is a matrix, identity, or uniform
     if (index + 1) > length(files_obs)
         error("BLABLA")
@@ -1141,8 +1139,8 @@ function get_observation_matrix!(obs_prob::Any, parsed_line::Any, index::Int64, 
 
     next_line = files_obs[index + 1] |> strip
 
-    turn_into_number_obs!(parsed_line, name_of_states, name_of_actions, name_of_observations, [2])
-    input = parse(Int64, parsed_line[2])
+    # turn_into_number_obs!(parsed_line, name_of_states, name_of_actions, name_of_observations, [2])
+    # input = parse(Int64, parsed_line[2])
     
     if isequal(next_line, "uniform")
         prob_val = 1/number_of_observations
@@ -1161,16 +1159,36 @@ function get_observation_matrix!(obs_prob::Any, parsed_line::Any, index::Int64, 
 
 
         if all(x -> !isnothing(tryparse.(Float64, split(x))), matrix_lines)
+
             matrix_obs = hcat([parse.(Float64, split(row)) for row in matrix_lines]...)' 
 
             for current_state in 1:number_of_states
-                for obs in 1:number_of_observations 
-                    obs_prob[(current_state, input, obs)] = matrix_obs[current_state, obs]
+                if testing_if_probability(matrix_obs[current_state,:])
+                    for obs in 1:number_of_observations 
+                        obs_prob[(current_state, input, obs)] = matrix_obs[current_state, obs]
+                    end
+                else
+                    @warn "One or more matrix's row is not a probability vector\n\n"
+                    print(sum(matrix_obs[current_state,:]), "\n\n\n")
+                    print(matrix_obs[current_state,:], "\n\n")
                 end
             end
         else
             error("BLABLA")
         end
+
+
+        # if all(x -> !isnothing(tryparse.(Float64, split(x))), matrix_lines)
+        #     matrix_obs = hcat([parse.(Float64, split(row)) for row in matrix_lines]...)' 
+
+        #     for current_state in 1:number_of_states
+        #         for obs in 1:number_of_observations 
+        #             obs_prob[(current_state, input, obs)] = matrix_obs[current_state, obs]
+        #         end
+        #     end
+        # else
+        #     error("BLABLA")
+        # end
     end
 end
 
@@ -1194,6 +1212,45 @@ function turn_into_number_obs!(parsed_line::Vector{String}, name_of_states::Dict
         if 2 in indices
             parsed_line[2] = string(name_of_actions[parsed_line[2]])
         end
+    end
+end
+
+function get_obs_prob_next_line!(current_state::Int64, input::Int64, obs_prob::Any, index::Int64, number_of_observations::Int64, files_obs::Vector{String})
+
+    next_line =  string.(split(files_obs[index + 1])) 
+
+    if all(x -> !isnothing(tryparse(Float64, x)), next_line)
+        prob = map(x -> parse(Float64, x), next_line)
+
+        if testing_if_probability(prob) && (length(prob) == number_of_observations) 
+
+            for (obs, value_prob) in enumerate(prob)
+                obs_prob[(current_state, input, obs)] = value_prob 
+            end
+            # NEED TO CONTINUE FROM HERE. MISSING POINTS:
+            # 2. ADD IDENTITY AND UNIFORM SETTING
+        else
+            error("BLABLA")
+        end
+    else
+        error("BLABLA")
+    end
+    
+end
+
+function get_obs_prob_number_same_line!(current_state, input, prob, obs_prob, number_of_observations)
+
+    if all(map(x -> !isnothing(tryparse(Float64,x)), prob)) && (length(prob) == number_of_observations)
+        prob = map(x->parse(Float64, x), prob)
+        if testing_if_probability(prob)
+            for (index, obs) in enumerate(1:number_of_observations)
+                obs_prob[(current_state, input, obs)] = prob[index]
+            end
+        else
+            error("BLABLA")
+        end
+    else
+        error("BLABLA")
     end
 end
 
@@ -1296,106 +1353,101 @@ function processing_observations_probability(number_of_states::Int64, number_of_
                 checking_third_param = split(parsed_line[3], " ", limit=2)
                 
                 if length(checking_third_param) == 1 # the transition probability will be on next line
-
                     number_wild_cards = count(x -> isequal(x, "*"), parsed_line)
 
                     if number_wild_cards == 0
-                        next_line =  string.(split(files_obs[index + 1])) 
+                        turn_into_number_obs!(parsed_line, name_of_states, name_of_actions, name_of_observations, [2,3])
 
-                        if all(x -> !isnothing(tryparse(Float64, x)), next_line)
-                            prob = map(x -> parse(Float64, x), next_line)
+                        input = parse(Int64, parsed_line[2]) 
+                        current_state = parse(Int64, parsed_line[3])
 
-                            if testing_if_probability(prob) && (length(prob) == number_of_observations) 
+                        get_obs_prob_next_line!(current_state, input, obs_prob, index, number_of_observations, files_obs)
+                        
+                    elseif number_wild_cards == 1 # Only implemented * on the first entry. Need to finish the rest
 
-                                turn_into_number_obs!(parsed_line, name_of_states, name_of_actions, name_of_observations, [2,3])
-                                # turn_into_number!(parsed_line, name_of_states, name_of_actions, [2, 3], 4) # I may have to chande this function. Last parameter may not be needed
-                                
-                                input = parse(Int64, parsed_line[2]) 
-                                current_state = parse(Int64, parsed_line[3])
+                        if isequal(parsed_line[2], "*")
+                            turn_into_number_obs!(parsed_line, name_of_states, name_of_actions, name_of_observations, [3])
 
-                                for (i, value_prob) in enumerate(prob)
-                                    obs_prob[(current_state, input, i)] = value_prob 
-                                end
-                                # NEED TO CONTINUE FROM HERE. MISSING POINTS:
-                                # 1. CHECK WHETHER * CAN APPEAR HERE
-                                # 2. ADD IDENTITY AND UNIFORM SETTING
-                            else
-                                error("BLABLA")
+                            current_state = parse(Int64, parsed_line[3])
+
+                            for input in 1:number_of_actions
+                                get_obs_prob_next_line!(current_state, input, obs_prob, index, number_of_observations, files_obs)
+                            end
+                        elseif isequal(parsed_line[3], "*")
+                            turn_into_number_obs!(parsed_line, name_of_states, name_of_actions, name_of_observations, [2])
+
+                            input = parse(Int64, parsed_line[2]) 
+
+                            for current_state in 1:number_of_states
+                                get_obs_prob_next_line!(current_state, input, obs_prob, index, number_of_observations, files_obs)
                             end
                         else
                             error("BLABLA")
                         end
-                    elseif number_wild_cards == 1 # Only implemented * on the first entry. Need to finish the rest
-                        next_line =  string.(split(files_obs[index + 1])) 
-                        if all(x-> !isnothing(tryparse(Float64, x)), next_line)
-                            prob = map(x -> parse(Float64, x), next_line)
-
-                            if testing_if_probability(prob) && (length(prob) == number_of_observations)
-                                turn_into_number_obs!(parsed_line, name_of_states, name_of_actions, name_of_observations, [3])
-                                # turn_into_number!(parsed_line, name_of_states, name_of_actions, [2, 3], 4) # I may have to chande this function. Last parameter may not be needed
-                                
-                                current_state = parse(Int64, parsed_line[3])
-
-                                for input in 1:number_of_actions
-                                    for (i, value_prob) in enumerate(prob)
-                                        obs_prob[(current_state, input, i)] = value_prob 
-                                    end
-                                end
-                            else
-                                error("BLABLA")
-                            end
-                        else
-                            error("BLABLA")
+                    elseif number_wild_cards == 2
+                        for current_state in 1:number_of_states, input in 1:number_of_actions
+                            get_obs_prob_next_line!(current_state, input, obs_prob, index, number_of_observations, files_obs)
                         end
                     else
-                        print("TBI: two wild cards not implemented in processing_observations_probability \n\n")
-                        # error("Not implemented")
+                        @warn "TBI: cannot parse this line \n\n"
                     end
                 else
                     parsed_line[3] = ""
                     parsed_line = filter(x -> !isempty(x), parsed_line)
                     map(x -> push!(parsed_line,x), checking_third_param)
 
-                    turn_into_number!(parsed_line, name_of_states, name_of_actions, [2,3], 4)
-
-                    input = parse(Int64, parsed_line[2])
-                    current_state = parse(Int64, parsed_line[3])
+                    number_wild_cards = count(x -> isequal(x, "*"), parsed_line)
 
                     prob = strip(parsed_line[4]) |> split
 
-                    if all(map(x -> !isnothing(tryparse(Float64,x)), prob)) && (length(prob) == number_of_observations)
-                        prob = map(x->parse(Float64, x), prob)
-                        
-                        if testing_if_probability(prob)
-                            for (index, obs) in enumerate(1:number_of_observations)
-                                obs_prob[(current_state,input,obs)] = prob[index]
+                    if number_wild_cards == 0
+                        turn_into_number_obs!(parsed_line, name_of_states, name_of_actions, name_of_observations, [2,3])
+
+                        input = parse(Int64, parsed_line[2])
+                        current_state = parse(Int64, parsed_line[3])
+
+                        get_obs_prob_number_same_line!(current_state, input, prob, obs_prob, number_of_observations)
+                    elseif number_wild_cards == 1
+                        if isequal(parsed_line[2], "*")
+                            turn_into_number_obs!(parsed_line, name_of_states, name_of_actions, name_of_observations, [3])
+
+                            current_state = parse(Int64, parsed_line[3])
+
+                            for input in 1:number_of_actions
+                                get_obs_prob_number_same_line!(current_state, input, prob, obs_prob, number_of_observations)
+                            end
+
+                        elseif isequal(parsed_line[3], "*")
+                            turn_into_number_obs!(parsed_line, name_of_states, name_of_actions, name_of_observations, [2])
+
+                            input = parse(Int64, parsed_line[2])
+
+                            for current_state in 1:number_of_states
+                                get_obs_prob_number_same_line!(current_state, input, prob, obs_prob, number_of_observations)
                             end
                         else
                             error("BLABLA")
                         end
+                    elseif number_wild_cards == 2
+                        for current_state = 1:number_of_states, input in 1:number_of_actions
+                            get_obs_prob_number_same_line!(current_state, input, prob, obs_prob, number_of_observations)
+                        end
                     else
-                        error("BLABLA")
+                        print("TBI: transition_prob. Number of wild cards not implemented")
                     end
                 end
-
-                
             elseif length(parsed_line) == 2
-             # O: <actions> : matrix
-             # O: * : matrix with the obersation trans_prob for every action
-
-                number_wild_cards = count(x-> isequal(x, "*"), parsed_line)
-
-                if number_wild_cards == 0
-                    # Input: files_obs, number_of_states, number_of_actions, number_of_observations, parsed_line
-                    get_observation_matrix!(obs_prob, parsed_line, index, number_of_states, number_of_observations, name_of_states, name_of_actions, name_of_observations, files_obs)
-
-                elseif number_wild_cards == 1
-
-                    for input in keys(name_of_actions)
-                        parsed_line[2] = input
-
-                        get_observation_matrix!(obs_prob, parsed_line, index, number_of_states, number_of_observations, name_of_states, name_of_actions, name_of_observations, files_obs)
+             # O: <actions> 
+                if isequal(parsed_line[2], "*")
+                    for input in 1:number_of_actions
+                        get_observation_matrix!(obs_prob, input, number_of_states, number_of_observations, index, files_obs)
                     end
+
+                elseif parsed_line[2] in keys(name_of_actions)
+                    turn_into_number_obs!(parsed_line, name_of_states, name_of_actions, name_of_observations, [2])
+                    input = parse(Int64, parsed_line[2])
+
+                    get_observation_matrix!(obs_prob, input, number_of_states, number_of_observations, index, files_obs)
                 else
                     error("BLABLA")
                 end
