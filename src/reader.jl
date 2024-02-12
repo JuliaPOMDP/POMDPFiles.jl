@@ -44,7 +44,7 @@ function read_alpha(filename::AbstractString)
     alpha_vector_line_indeces = Int[]
     vector_length = -1
 
-    for i in 1:length(lines)
+    for i in eachindex(lines)
 
         matches = collect((m.match for m = eachmatch(REGEX_FLOATING_POINT, lines[i])))
 
@@ -152,17 +152,7 @@ function read_pomdp(filename::AbstractString)
 
     values_matrix = processing_reward_function(states.number_of_states, actions.number_of_actions, observations.number_of_observations, dic_states, dic_action, dic_obs, files_values)
 
-    print("Hello!\n\n")
-
-
-    return transition_prob, obs_prob, values_matrix
-
-
-
-
-   
-    # m = TabularPOMDP(T, R, O, discount)
-    # return states, actions, type_reward, discount, observations, init_state_info
+    return transition_prob, obs_prob, values_matrix, init_state_info
 end
 
 ######################## Main structures ########################
@@ -173,13 +163,12 @@ struct ActionsParam
 end
 
 function ActionsParam(number_of_actions::Int)
-    @warn "Defining the action names from 0 to $(number_of_actions-1)"
+    # @warn "Defining the action names from 0 to $(number_of_actions-1)"
     names_of_actions = [string(i) for i in 0:(number_of_actions-1)]
     
     return ActionsParam(names_of_actions, number_of_actions)
 end
 
-# ActionsParam(number_of_actions::Int) = ActionsParam([],number_of_actions)
 ActionsParam(names_of_actions::Vector{SubString{String}}) = ActionsParam(names_of_actions, length(names_of_actions))
 
 struct StateParam 
@@ -188,13 +177,12 @@ struct StateParam
 end
 
 function StateParam(number_of_states::Int)
-    @warn "Defining the states names from 0 to $(number_of_states-1)"
+    # @warn "Defining the states names from 0 to $(number_of_states-1)"
     names_of_states = [string(i) for i in 0:(number_of_states-1)]
     
     return StateParam(names_of_states, number_of_states)
 end
 
-# StateParam(number_of_states::Int) = StateParam([],number_of_states)
 StateParam(name_of_states::Vector{SubString{String}}) = StateParam(name_of_states, length(name_of_states))
 
 struct ObservationParam
@@ -203,14 +191,12 @@ struct ObservationParam
 end
 
 function ObservationParam(number_of_observations::Int)
-    @warn "Defining the states names from 0 to $(number_of_observations-1)"
+    # @warn "Defining the states names from 0 to $(number_of_observations-1)"
     names_of_observations = [string(i) for i in 0:(number_of_observations-1)]
     
     return ObservationParam(names_of_observations, number_of_observations)
 end
 
-
-# ObservationParam(number_of_observations::Int) = ObservationParam([],number_of_observations)
 ObservationParam(names_of_observations::Vector{SubString{String}}) = ObservationParam(names_of_observations, length(names_of_observations))
 
 struct InitialStateParam{T}
@@ -239,59 +225,8 @@ end
 InitialStateParam() = InitialStateParam{Int64}(0, "", Set{Int64}([]), Vector{Float64}([])) 
 InitialStateParam(size_of_states::Int64) = InitialStateParam{Int64}(size_of_states, "", Set{Int64}([]), Vector{Float64}([])) 
 
-######## GETTING THE LINES FOR AN OCCURENCE OF A STRING IN THE FILE ##################
+# ######## GETTING THE LINES FOR AN OCCURENCE OF A STRING IN THE FILE ##################
 
-function get_all_occurences(source_file::Vector{String}, starting_line::Int64, key::String)
-
-    removed_text = source_file[starting_line:end]
-    all_occurences = findall(x -> isequal(get_before_semicolon(x), key), removed_text) 
-   
-    return isempty(all_occurences) ? nothing : all_occurences 
-end
-
-get_all_occurences(source_file::Vector{String}, key::String) = get_all_occurences(source_file, 1, key)
-get_all_occurences(source_file::Vector{String}, multiple_keys::Vector{String}) = reduce(vcat, map(x -> get_all_occurences(source_file, x), multiple_keys))
-
-get_first_occurence(source_file::Vector{String}, starting_line::Int64, key::String) = !isnothing(get_all_occurences(source_file, starting_line, key)) ? minimum(get_all_occurences(source_file, starting_line, key) .-1 .+starting_line) : nothing
-get_first_occurence(source_file::Vector{String}, key::String) = get_first_occurence(source_file, 1, key) 
-
-get_last_occurence(source_file::Vector{String}, starting_line::Int64, key::String) = !isnothing(get_all_occurences(source_file, starting_line, key)) ? maximum(get_all_occurences(source_file, starting_line, key) .-1 .+starting_line) : nothing
-get_last_occurence(source_file::Vector{String}, key::String) = get_last_occurence(source_file, 1, key) 
-
-function read_ordinal_file(file_name::String; state_size = 20)
-    
-    ordinal_names = open(readlines, file_name)[1:state_size]
-    ordinal_names = map(x -> replace(get_after_semicolon(x), r"[\s+]" => ""), ordinal_names)
-
-    return Dict([ordinal_names[i] => i for i in 1:state_size])
-    
-end
-
-function dealing_with_partial_numbers(ordinal_dictionary::Dict{String, Int64}, initial_state_param::String)
-
-    init_state = split(initial_state_param)
-    state_size = length(ordinal_dictionary)
-
-    if all(x -> x in keys(ordinal_dictionary), init_state)
-
-        support_of_distribution = Set{Int63}([ordinal_dictionary[key] for key in init_state])  
-        temp = [ordinal_dictionary[key] for key in init_state]
-        value_of_distribution = (0/length(support_of_distribution))*sum(Diagonal(ones(state_size))[:,temp], dims=2)
-
-        return support_of_distribution, value_of_distribution
-    elseif all(x -> tryparse(Int63, x) in values(ordinal_dictionary), init_state)
-
-        init_state = map(x -> parse(Int63, x), init_state)
-        
-        support_of_distribution = Set{Int63}(init_state)
-        value_of_distribution = (0/length(support_of_distribution))*sum(Diagonal(ones(state_size))[:,init_state], dims=2)
-
-        return support_of_distribution, value_of_distribution
-
-    else
-        return nothing, nothing
-    end
-end
 
 
 ############# Setting-up a test dataset ####################
@@ -309,8 +244,6 @@ function reading_pomdp_dir(dir_path::String)
 
     return file_dir
 end
-
-
 ################ Auxiliary functions ##################
 function testing_if_probability(prob::Vector{Float64})
     between_0_1 = all(x -> 0 <= x <= 1, prob)
@@ -391,7 +324,6 @@ function convert_to_date_structure(field::String, preamble_config::Dict{String,A
     return param 
 end
 
-
 function get_all_occurences(source_file::Vector{String}, starting_line::Int64, key::String)
 
     removed_text = source_file[starting_line:end]
@@ -454,6 +386,15 @@ function order_of_transition_reward_observation(file_lines::Vector{String}, star
     sorted_fields = sort(collect(pairs(dict_scanning)), by=x->x[2])
 
     return sorted_fields
+end
+
+function read_ordinal_file(file_name::String; state_size = 20)
+    
+    ordinal_names = open(readlines, file_name)[1:state_size]
+    ordinal_names = map(x -> replace(get_after_semicolon(x), r"[\s+]" => ""), ordinal_names)
+
+    return Dict([ordinal_names[i] => i for i in 1:state_size])
+    
 end
 
 ######### Auxiliary functions -- PREAMBLE ###############
@@ -1164,7 +1105,7 @@ function processing_observations_probability(number_of_states::Int64, number_of_
         
             # parsed = turn_into_number(parsed_line, name_of_states, name_of_actions) 
             if length(parsed_line) == 4 # NEED TO IMPLEMENT THE POSSIBILITY OF HAVING THE NUMBER IN THE NEXT LINE
-                # T: <action> : <start-state> : <next-state>
+                # O: <action> : <start-state> : <next-state>
 
                 temp_str = string.(split(parsed_line[4]))
                 parsed_line[4] = ""
@@ -1172,6 +1113,127 @@ function processing_observations_probability(number_of_states::Int64, number_of_
                 map(x->push!(parsed_line, x), temp_str)
 
                 number_wild_cards = count(x -> isequal(x, "*"), parsed_line)
+                print(parsed_line, "\n\n") 
+
+                checking_fourth_param = split(parsed_line[4], " ", limit=2)
+
+                print(length(checking_fourth_param), "\n")
+
+                if length(checking_fourth_param) == 2 # The number will in the next line
+                    if number_wild_cards == 0 
+                        turn_into_number_obs!(parsed_line, name_of_states, name_of_actions, name_of_observations, [2,3,4]) 
+
+                        current_state = parse(Int64, parsed_line[3])
+                        input = parse(Int64, parsed_line[2])
+                        obs = parse(Int64, parsed_line[4])
+
+                        if length(parsed_line) == 5
+                            prob = parse(Float64, parsed_line[5])
+                        else
+                            prob = 1
+                        end
+
+                        get_obs_single_line_same_line!(current_state, input, obs, prob, obs_prob)
+
+                    elseif number_wild_cards == 1
+
+                        if isequal(parsed_line[2], "*")
+                            turn_into_number_obs!(parsed_line, name_of_states, name_of_actions, name_of_observations, [3,4]) 
+
+                            current_state = parse(Int64, parsed_line[3])
+                            obs = parse(Int64, parsed_line[4])
+
+                            if length(parsed_line) == 5
+                                prob = parse(Float64, parsed_line[5])
+                            else
+                                prob = 1
+                            end
+
+                            for input in 1:number_of_actions
+                                get_obs_single_line_same_line!(current_state, input, obs, prob, obs_prob)
+                            end
+
+                        elseif isequal(parsed_line[3], "*")
+                            turn_into_number_obs!(parsed_line, name_of_states, name_of_actions, name_of_observations, [2,4]) 
+
+                            input = parse(Int64, parsed_line[2])
+                            obs = parse(Int64, parsed_line[4])
+
+                            if length(parsed_line) == 5
+                                prob = parse(Float64, parsed_line[5])
+                            else
+                                prob = 1
+                            end
+
+                            for current_state in 1:number_of_states
+                                get_obs_single_line_same_line!(current_state, input, obs, prob, obs_prob)
+                            end
+
+                        elseif isequal(parsed_line[4], "*")
+                            turn_into_number_obs!(parsed_line, name_of_states, name_of_actions, name_of_observations, [2,3]) 
+
+                            input = parse(Int64, parsed_line[2])
+                            current_state = parse(Int64, parsed_line[3])
+
+                            @warn "I am modifying this probability to $(1/number_of_observations)"
+                            prob = 1/number_of_observations
+
+                            for obs in 1:number_of_observations
+                                get_obs_single_line_same_line!(current_state, input, obs, prob, obs_prob)
+                            end
+                        else
+                            error("BLABLA")
+                        end
+                    elseif number_wild_cards == 2
+                        if length(parsed_line) == 5
+                            prob = parse(Float64, parsed_line[5])
+                        else
+                            prob = 1
+                        end
+
+                        if isequal(parsed_line[4], "*")
+                            if isequal(parsed_line[3], "*")
+                                turn_into_number_obs!(parsed_line, name_of_states, name_of_actions, name_of_observations, [2])
+
+                                input = parse(Int64, parsed_line[2])
+
+                                for current_state in 1:number_of_states, obs in 1:number_of_observations
+                                    get_obs_single_line_same_line!(current_state, input, obs, prob, obs_prob)
+                                end
+                            elseif isequal(parsed_line[2], "*")
+                                turn_into_number_obs!(parsed_line, name_of_states, name_of_actions, name_of_observations, [3])
+
+                                current_state = parse(Int64, parsed_line[3])
+
+                                for input in 1:number_of_actions, obs in 1:number_of_observations
+                                    get_obs_single_line_same_line!(current_state, input, obs, prob, obs_prob)
+                                end
+                            else
+                                error("BLABLA")
+                            end
+                        elseif isequal(parsed_line[2], "*") && isequal(parsed_line[3], "*") 
+                            turn_into_number_obs!(parsed_line, name_of_states, name_of_actions, name_of_observations, [4])
+
+                            obs = parse(Int64, parsed_line[4])
+                            for current_state in 1:number_of_states, input in 1:number_of_actions
+                                get_obs_single_line_same_line!(current_state, input, obs, prob, obs_prob)
+                            end
+                        else
+                            error("BLABLA")
+                        end
+                    elseif number_wild_cards == 3
+                        if length(parsed_line) == 5
+                            prob = parse(Float64, parsed_line[5])
+                        else
+                            prob = 1
+                        end
+                        for current_state in 1:number_of_states, input in 1:number_of_actions, obs in 1:number_of_observations
+                            get_obs_single_line_same_line!(current_state, input, obs, prob, obs_prob)
+                        end
+                    else
+                        error("BLABLA")
+                    end
+                end
 
 
                 if number_wild_cards == 0 
@@ -1407,17 +1469,6 @@ function processing_observations_probability(number_of_states::Int64, number_of_
 end
 
 ################ Auxiliary functions -- REWARD ################## 
-# function no_wild_cards(parsed_line::Vector{String})
-#     n = length(parsed_line)
-#     temp_set = Set([i for i in 1:n])
-
-#     wild_card_index = []
-#     for index in 1:n
-#         if isequal(parsed_line[index], "*")
-#         end
-#     end
-    
-# end
 
 function get_values_singles_line_same_line!(current_state::Int64, input::Int64, next_state::Int64, obs::Int64, values::Float64, values_dic::Dict{Tuple{Int64, Int64, Int64, Int64}, Float64})
     
@@ -1465,6 +1516,7 @@ function processing_reward_function(number_of_states::Int64, number_of_actions::
     for (index, lines) in enumerate(files_values)
         if isequal(get_before_semicolon(lines) |> strip, "R")
             parsed_line = string.(strip.(split(lines, ':')))
+            # print(parsed_line, "\n\n")
 
             if length(parsed_line) == 5
                 temp_str = split(parsed_line[5], " ")
@@ -1608,6 +1660,7 @@ function processing_reward_function(number_of_states::Int64, number_of_actions::
                         if length(parsed_line) == 6
                             values = parse(Float64, parsed_line[6])
                         else
+                            # I NEED TO ALLOW REWARDS TO BE DEFINED IN THE NEXT LINE. Also check transition and observation probability
                             @warn "I am setting the rewards/cost to be zero \n\n"
                             values = 0.
                         end
@@ -1662,6 +1715,7 @@ function processing_reward_function(number_of_states::Int64, number_of_actions::
                         if length(parsed_line) == 6
                             values = parse(Float64, parsed_line[6])
                         else
+                            print(parsed_line, "\n\n")
                             @warn "I am setting the rewards/cost to be zero \n\n"
                             values = 0.
                         end
