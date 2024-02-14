@@ -9,9 +9,9 @@ include("./reader.jl")
 # trans_prob, obs_prob, reward_func, init_state = read_pomdp("./../test/sources/network.POMDP") 
 # trans_prob, obs_prob, reward_func, init_state = read_pomdp("./../test/sources/milos-aaai97.POMDP") 
 # trans_prob, obs_prob, reward_func, init_state = read_pomdp("./../test/sources/mcc-example2.POMDP") 
-# trans_prob, obs_prob, reward_func, init_state = read_pomdp("./../test/sources/mcc-example1.POMDP") 
+trans_prob, obs_prob, reward_func, init_state = read_pomdp("./../test/sources/mcc-example1.POMDP") 
 
-trans_prob, obs_prob, reward_func, init_state = read_pomdp("./../test/sources/pomdp-ex.pomdp") 
+# trans_prob, obs_prob, reward_func, init_state = read_pomdp("./../test/sources/pomdp-ex.pomdp") 
 
 print("POMDP read! \n\n\n")
 
