@@ -1014,19 +1014,6 @@ function get_observation_matrix!(obs_prob::Any, input::Int64, number_of_states::
         else
             error("BLABLA")
         end
-
-
-        # if all(x -> !isnothing(tryparse.(Float64, split(x))), matrix_lines)
-        #     matrix_obs = hcat([parse.(Float64, split(row)) for row in matrix_lines]...)' 
-
-        #     for current_state in 1:number_of_states
-        #         for obs in 1:number_of_observations 
-        #             obs_prob[(current_state, input, obs)] = matrix_obs[current_state, obs]
-        #         end
-        #     end
-        # else
-        #     error("BLABLA")
-        # end
     end
 end
 
@@ -1076,22 +1063,6 @@ function get_obs_prob_next_line!(current_state::Int64, input::Int64, obs_prob::A
     
 end
 
-function get_obs_prob_number_same_line!(current_state, input, prob, obs_prob, number_of_observations)
-
-    if all(map(x -> !isnothing(tryparse(Float64,x)), prob)) && (length(prob) == number_of_observations)
-        prob = map(x->parse(Float64, x), prob)
-        if testing_if_probability(prob)
-            for (index, obs) in enumerate(1:number_of_observations)
-                obs_prob[(current_state, input, obs)] = prob[index]
-            end
-        else
-            error("BLABLA")
-        end
-    else
-        error("BLABLA")
-    end
-end
-
 
 function processing_observations_probability(number_of_states::Int64, number_of_actions::Int64, number_of_observations::Int64, name_of_states::Dict{String,Int64}, name_of_actions::Dict{String,Int64}, name_of_observations::Dict{String, Int64}, files_obs::Vector{String})
 
@@ -1102,10 +1073,11 @@ function processing_observations_probability(number_of_states::Int64, number_of_
 
         if isequal(get_before_semicolon(lines) |> strip, "O")
             parsed_line = string.(strip.(split(lines, ':')))
-        
-            # parsed = turn_into_number(parsed_line, name_of_states, name_of_actions) 
+            
             if length(parsed_line) == 4 # NEED TO IMPLEMENT THE POSSIBILITY OF HAVING THE NUMBER IN THE NEXT LINE
                 # O: <action> : <start-state> : <next-state>
+                
+                checking_fourth_param = split(parsed_line[4], " ", limit=2) # variable used to check whether parameter is in the next line
 
                 temp_str = string.(split(parsed_line[4]))
                 parsed_line[4] = ""
@@ -1113,13 +1085,70 @@ function processing_observations_probability(number_of_states::Int64, number_of_
                 map(x->push!(parsed_line, x), temp_str)
 
                 number_wild_cards = count(x -> isequal(x, "*"), parsed_line)
-                print(parsed_line, "\n\n") 
 
-                checking_fourth_param = split(parsed_line[4], " ", limit=2)
+                if length(checking_fourth_param) == 1
 
-                print(length(checking_fourth_param), "\n")
+                    number_wild_cards = count(x -> isequal(x, "*"), parsed_line)
+                    
+                    if number_wild_cards == 0 
+                        turn_into_number_obs!(parsed_line, name_of_states, name_of_actions, name_of_observations, [2, 3, 4]) # I may have to chande this function. Last parameter may not be needed
+                        
+                        input = parse(Int64, parsed_line[2]) 
+                        current_state = parse(Int64, parsed_line[3])
+                        obs = parse(Int64, parsed_line[4])
 
-                if length(checking_fourth_param) == 2 # The number will in the next line
+                        if !isnothing(tryparse(Float64, files_obs[index+1]))
+                            obs_prob[(current_state, input, obs)] = parse(Float64, files_obs[index+1])
+                        else
+                            println("BLABLA")
+                        end
+                        # obs_prob[(current_state, input, obs)] = parse(Float64, ) 
+                    elseif number_wild_cards == 1
+                         if isequal(parsed_line[2], "*")
+                            turn_into_number_obs!(parsed_line, name_of_states, name_of_actions, name_of_observations, [3,4]) 
+
+                            current_state = parse(Int64, parsed_line[3])
+                            obs = parse(Int64, parsed_line[4])
+
+                            # println(parsed_line)
+                            prob = parse(Float64, files_obs[index + 1])
+
+                            for input in 1:number_of_actions
+                                obs_prob[(current_state, input, obs)] = prob 
+                            end
+
+                        elseif isequal(parsed_line[3], "*")
+                            turn_into_number_obs!(parsed_line, name_of_states, name_of_actions, name_of_observations, [2,4]) 
+
+                            input = parse(Int64, parsed_line[2])
+                            obs = parse(Int64, parsed_line[4])
+
+                            prob = parse(Float64, files_obs[index+1])
+
+                            for current_state in 1:number_of_states
+                                obs_prob[(current_state, input, obs)] = prob 
+                            end
+
+                        elseif isequal(parsed_line[4], "*")
+                            turn_into_number_obs!(parsed_line, name_of_states, name_of_actions, name_of_observations, [2,3]) 
+
+                            input = parse(Int64, parsed_line[2])
+                            current_state = parse(Int64, parsed_line[3])
+
+                            prob = parse(Float64, files_obs[index+1])
+
+                            for obs in 1:number_of_observations
+                                obs_prob[(current_state, input, obs)] = prob 
+                            end
+                        else
+                            error("BLABLA")
+                        end
+                    elseif number_wild_cards == 2
+                        println("TBI: observation prob")
+                    elseif number_wild_cards == 3
+                        println("TBI: observation probability")
+                    end
+                elseif length(checking_fourth_param) == 2 # The probability will be in the same line
                     if number_wild_cards == 0 
                         turn_into_number_obs!(parsed_line, name_of_states, name_of_actions, name_of_observations, [2,3,4]) 
 
@@ -1234,126 +1263,7 @@ function processing_observations_probability(number_of_states::Int64, number_of_
                         error("BLABLA")
                     end
                 end
-
-
-                if number_wild_cards == 0 
-                    turn_into_number_obs!(parsed_line, name_of_states, name_of_actions, name_of_observations, [2,3,4]) 
-
-                    current_state = parse(Int64, parsed_line[3])
-                    input = parse(Int64, parsed_line[2])
-                    obs = parse(Int64, parsed_line[4])
-
-                    if length(parsed_line) == 5
-                        prob = parse(Float64, parsed_line[5])
-                    else
-                        prob = 1
-                    end
-
-                    get_obs_single_line_same_line!(current_state, input, obs, prob, obs_prob)
-
-                elseif number_wild_cards == 1
-
-                    if isequal(parsed_line[2], "*")
-                        turn_into_number_obs!(parsed_line, name_of_states, name_of_actions, name_of_observations, [3,4]) 
-
-                        current_state = parse(Int64, parsed_line[3])
-                        obs = parse(Int64, parsed_line[4])
-
-                        if length(parsed_line) == 5
-                            prob = parse(Float64, parsed_line[5])
-                        else
-                            prob = 1
-                        end
-
-                        for input in 1:number_of_actions
-                            get_obs_single_line_same_line!(current_state, input, obs, prob, obs_prob)
-                        end
-
-                    elseif isequal(parsed_line[3], "*")
-                        turn_into_number_obs!(parsed_line, name_of_states, name_of_actions, name_of_observations, [2,4]) 
-
-                        input = parse(Int64, parsed_line[2])
-                        obs = parse(Int64, parsed_line[4])
-
-                        if length(parsed_line) == 5
-                            prob = parse(Float64, parsed_line[5])
-                        else
-                            prob = 1
-                        end
-
-                        for current_state in 1:number_of_states
-                            get_obs_single_line_same_line!(current_state, input, obs, prob, obs_prob)
-                        end
-
-                    elseif isequal(parsed_line[4], "*")
-                        turn_into_number_obs!(parsed_line, name_of_states, name_of_actions, name_of_observations, [2,3]) 
-
-                        input = parse(Int64, parsed_line[2])
-                        current_state = parse(Int64, parsed_line[3])
-
-                        @warn "I am modifying this probability to $(1/number_of_observations)"
-                        prob = 1/number_of_observations
-
-                        for obs in 1:number_of_observations
-                            get_obs_single_line_same_line!(current_state, input, obs, prob, obs_prob)
-                        end
-                    else
-                        error("BLABLA")
-                    end
-                elseif number_wild_cards == 2
-                    if length(parsed_line) == 5
-                        prob = parse(Float64, parsed_line[5])
-                    else
-                        prob = 1
-                    end
-
-                    if isequal(parsed_line[4], "*")
-                        if isequal(parsed_line[3], "*")
-                            turn_into_number_obs!(parsed_line, name_of_states, name_of_actions, name_of_observations, [2])
-
-                            input = parse(Int64, parsed_line[2])
-
-                            for current_state in 1:number_of_states, obs in 1:number_of_observations
-                                get_obs_single_line_same_line!(current_state, input, obs, prob, obs_prob)
-                            end
-                        elseif isequal(parsed_line[2], "*")
-                            turn_into_number_obs!(parsed_line, name_of_states, name_of_actions, name_of_observations, [3])
-
-                            current_state = parse(Int64, parsed_line[3])
-
-                            for input in 1:number_of_actions, obs in 1:number_of_observations
-                                get_obs_single_line_same_line!(current_state, input, obs, prob, obs_prob)
-                            end
-                        else
-                            error("BLABLA")
-                        end
-                    elseif isequal(parsed_line[2], "*") && isequal(parsed_line[3], "*") 
-                        turn_into_number_obs!(parsed_line, name_of_states, name_of_actions, name_of_observations, [4])
-
-                        obs = parse(Int64, parsed_line[4])
-                        for current_state in 1:number_of_states, input in 1:number_of_actions
-                            get_obs_single_line_same_line!(current_state, input, obs, prob, obs_prob)
-                        end
-                    else
-                        error("BLABLA")
-                    end
-                elseif number_wild_cards == 3
-                    if length(parsed_line) == 5
-                        prob = parse(Float64, parsed_line[5])
-                    else
-                        prob = 1
-                    end
-                    for current_state in 1:number_of_states, input in 1:number_of_actions, obs in 1:number_of_observations
-                        get_obs_single_line_same_line!(current_state, input, obs, prob, obs_prob)
-                    end
-                else
-                    error("BLABLA")
-                end
-
-                # else
-                #     print("TBI: three wild cards, processing_observation_probability \n\n")
-                #     # error("You cannot have two wild cards in the same row")
-                # end
+                
             elseif length(parsed_line) == 3
                 # O: <action> : <start-state>
                 
