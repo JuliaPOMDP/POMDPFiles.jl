@@ -837,7 +837,6 @@ end
 function processing_transition_probability(number_of_states::Int64, number_of_actions::Int64, name_of_states::Dict{String,Int64}, name_of_actions::Dict{String,Int64}, trans_prob_occurences::Vector{String})
 
 
-    # trans_prob = Dict((states, actions, states_n) => 0. for states in 1:number_of_states, actions in 1:number_of_actions, states_n in 1:number_of_states)
     trans_prob_index = Vector{Tuple{Int64, Int64, Int64}}()
     trans_prob_values = Vector{Float64}()
 
@@ -861,6 +860,7 @@ function processing_transition_probability(number_of_states::Int64, number_of_ac
                 number_wild_cards = count(x -> isequal(x, "*"), parsed_line)
 
                 if length(checking_fourth_param) == 1 # parameter passed in the next line
+
                     if number_wild_cards == 0 
                         turn_into_number!(parsed_line, name_of_states, name_of_actions, [2, 3, 4]) # I may have to chande this function. Last parameter may not be needed
                         
@@ -1143,10 +1143,10 @@ function get_obs_single_line_same_line!(current_state, input, obs, prob, obs_pro
 end
 
 # Input: files_obs, number_of_states, number_of_actions, number_of_observations, parsed_line
-function get_observation_matrix!(obs_prob::Any, input::Int64, number_of_states::Int64, number_of_observations::Int64, index::Int64, files_obs::Vector{String})
+function get_observation_matrix!(obs_prob_index::Vector{NTuple{3, Int}}, obs_prob_values::Vector{Float64}, input::Int64, number_of_states::Int64, number_of_observations::Int64, index::Int64, files_obs::Vector{String})
     # Need to check whether it is a matrix, identity, or uniform
     if (index + 1) > length(files_obs)
-        error("BLABLA")
+        error("It seems this file does not contain information about the observation transition probability. Unable to parse the file.")
     end
 
     next_line = files_obs[index + 1] |> strip
@@ -1156,12 +1156,13 @@ function get_observation_matrix!(obs_prob::Any, input::Int64, number_of_states::
 
         for current_state in 1:number_of_states
             for obs in 1:number_of_observations 
-                obs_prob[(current_state, input, obs)] = prob_val
+                push!(obs_prob_index, (current_state, input, obs))
+                push!(obs_prob_values, prob_val)
             end
         end
     else
         if index + number_of_states > length(files_obs)
-            error("BLABLA")
+            error("Unable to parse the file.")
         end
 
         matrix_lines = files_obs[index + 1:index + number_of_states]
@@ -1174,16 +1175,17 @@ function get_observation_matrix!(obs_prob::Any, input::Int64, number_of_states::
             for current_state in 1:number_of_states
                 if testing_if_probability(matrix_obs[current_state,:])
                     for obs in 1:number_of_observations 
-                        obs_prob[(current_state, input, obs)] = matrix_obs[current_state, obs]
+                        push!(obs_prob_index, (current_state, input, obs))
+                        push!(obs_prob_values, matrix_obs[current_state, obs])
                     end
                 else
                     @warn "One or more matrix's row is not a probability vector\n\n"
-                    print(sum(matrix_obs[current_state,:]), "\n\n\n")
-                    print(matrix_obs[current_state,:], "\n\n")
+                    println(sum(matrix_obs[current_state,:]))
+                    println(matrix_obs[current_state,:])
                 end
             end
         else
-            error("BLABLA")
+            error("Please check the file. Unable to parse the transition probability associated with action $(input)")
         end
     end
 end
@@ -1238,6 +1240,8 @@ end
 function processing_observations_probability(number_of_states::Int64, number_of_actions::Int64, number_of_observations::Int64, name_of_states::Dict{String,Int64}, name_of_actions::Dict{String,Int64}, name_of_observations::Dict{String, Int64}, files_obs::Vector{String})
 
     obs_prob = Dict((states, actions, observations) => 0. for states in 1:number_of_states, actions in 1:number_of_actions, observations in 1:number_of_observations)
+    obs_prob_index = Vector{Tuple{Int64, Int64, Int64}}()
+    obs_prob_values = Vector{Float64}()
 
 
     for (index, lines) in enumerate(files_obs)
@@ -1269,48 +1273,64 @@ function processing_observations_probability(number_of_states::Int64, number_of_
                         obs = parse(Int64, parsed_line[4])
 
                         if !isnothing(tryparse(Float64, files_obs[index+1]))
-                            obs_prob[(current_state, input, obs)] = parse(Float64, files_obs[index+1])
+
+                            obs_value = parse(Float64, files_obs[index + 1])
+
+                            push!(obs_prob_index, (current_state, input, obs))
+                            push!(obs_prob_values, obs_value)
                         else
-                            println("BLABLA")
+                            println("Error while parsing the file. Could not read the observation probability.")
                         end
-                        # obs_prob[(current_state, input, obs)] = parse(Float64, ) 
                     elseif number_wild_cards == 1
                          if isequal(parsed_line[2], "*")
                             turn_into_number_obs!(parsed_line, name_of_states, name_of_actions, name_of_observations, [3,4]) 
 
                             current_state = parse(Int64, parsed_line[3])
                             obs = parse(Int64, parsed_line[4])
+                            input = 0
 
-                            # println(parsed_line)
-                            prob = parse(Float64, files_obs[index + 1])
+                            if !isnothing(tryparse(Float64, files_obs[index + 1])) 
+                                obs_value = parse(Float64, files_obs[index + 1])
 
-                            for input in 1:number_of_actions
-                                obs_prob[(current_state, input, obs)] = prob 
+                                push!(obs_prob_index, (current_state, input, obs))
+                                push!(obs_prob_values, obs_value)
+                            else
+                                error("Error while parsing this line. Could not read the transition probability")
                             end
 
                         elseif isequal(parsed_line[3], "*")
                             turn_into_number_obs!(parsed_line, name_of_states, name_of_actions, name_of_observations, [2,4]) 
 
+                            current_state = 0
                             input = parse(Int64, parsed_line[2])
                             obs = parse(Int64, parsed_line[4])
 
-                            prob = parse(Float64, files_obs[index+1])
+                            if !isnothing(tryparse(Float64, files_obs[index + 1])) 
+                                obs_value = parse(Float64, files_obs[index + 1])
 
-                            for current_state in 1:number_of_states
-                                obs_prob[(current_state, input, obs)] = prob 
+                                push!(obs_prob_index, (current_state, input, obs))
+                                push!(obs_prob_values, obs_value)
+                            else
+                                error("Error while parsing this line. Could not read the transition probability")
                             end
 
                         elseif isequal(parsed_line[4], "*")
+
                             turn_into_number_obs!(parsed_line, name_of_states, name_of_actions, name_of_observations, [2,3]) 
 
                             input = parse(Int64, parsed_line[2])
                             current_state = parse(Int64, parsed_line[3])
+                            obs = 0
 
-                            prob = parse(Float64, files_obs[index+1])
+                            if !isnothing(tryparse(Float64, files_obs[index + 1])) 
+                                obs_value = parse(Float64, files_obs[index + 1])
 
-                            for obs in 1:number_of_observations
-                                obs_prob[(current_state, input, obs)] = prob 
+                                push!(obs_prob_index, (current_state, input, obs))
+                                push!(obs_prob_values, obs_value)
+                            else
+                                error("Error while parsing this line. Could not read the transition probability")
                             end
+
                         else
                             error("BLABLA")
                         end
@@ -1328,12 +1348,14 @@ function processing_observations_probability(number_of_states::Int64, number_of_
                         obs = parse(Int64, parsed_line[4])
 
                         if length(parsed_line) == 5
-                            prob = parse(Float64, parsed_line[5])
+                            obs_value = parse(Float64, parsed_line[5])
                         else
-                            prob = 1
+                            @warn "I am assinging this probability to one."
+                            obs_value = 1.
                         end
 
-                        get_obs_single_line_same_line!(current_state, input, obs, prob, obs_prob)
+                        push!(obs_prob_index, (current_state, input, obs))
+                        push!(obs_prob_values, obs_value)
 
                     elseif number_wild_cards == 1
 
@@ -1342,49 +1364,52 @@ function processing_observations_probability(number_of_states::Int64, number_of_
 
                             current_state = parse(Int64, parsed_line[3])
                             obs = parse(Int64, parsed_line[4])
+                            input = 0
 
                             if length(parsed_line) == 5
-                                prob = parse(Float64, parsed_line[5])
+                                obs_value = parse(Float64, parsed_line[5])
                             else
-                                prob = 1
+                                @warn "I am assinging this probability to one"
+                                obs_value = 1
                             end
 
-                            for input in 1:number_of_actions
-                                get_obs_single_line_same_line!(current_state, input, obs, prob, obs_prob)
-                            end
+                            push!(obs_prob_index, (current_state, input, obs))
+                            push!(obs_prob_values, obs_value)
 
                         elseif isequal(parsed_line[3], "*")
                             turn_into_number_obs!(parsed_line, name_of_states, name_of_actions, name_of_observations, [2,4]) 
 
                             input = parse(Int64, parsed_line[2])
                             obs = parse(Int64, parsed_line[4])
+                            current_state = 0
 
                             if length(parsed_line) == 5
-                                prob = parse(Float64, parsed_line[5])
+                                obs_value = parse(Float64, parsed_line[5])
                             else
-                                prob = 1
+                                @warn "I am assigning this probability to one"
+                                obs_value = 1.
                             end
 
-                            for current_state in 1:number_of_states
-                                get_obs_single_line_same_line!(current_state, input, obs, prob, obs_prob)
-                            end
+                            push!(obs_prob_index, (current_state, input, obs))
+                            push!(obs_prob_values, obs_value)
 
                         elseif isequal(parsed_line[4], "*")
                             turn_into_number_obs!(parsed_line, name_of_states, name_of_actions, name_of_observations, [2,3]) 
 
                             input = parse(Int64, parsed_line[2])
                             current_state = parse(Int64, parsed_line[3])
+                            obs = 0
 
                             @warn "I am modifying this probability to $(1/number_of_observations)"
-                            prob = 1/number_of_observations
+                            obs_value = 1/number_of_observations
+                            
+                            push!(obs_prob_index, (current_state, input, obs))
+                            push!(obs_prob_values, obs_value)
 
-                            for obs in 1:number_of_observations
-                                get_obs_single_line_same_line!(current_state, input, obs, prob, obs_prob)
-                            end
                         else
-                            error("BLABLA")
+                            error("Unrecognized number of wild cards. Please check your file.")
                         end
-                    elseif number_wild_cards == 2
+                    elseif number_wild_cards == 2 # I HAVE CHECKED THIS FUNCTIONS UP TO THIS POINT
                         if length(parsed_line) == 5
                             prob = parse(Float64, parsed_line[5])
                         else
@@ -1532,14 +1557,14 @@ function processing_observations_probability(number_of_states::Int64, number_of_
              # O: <actions> 
                 if isequal(parsed_line[2], "*")
                     for input in 1:number_of_actions
-                        get_observation_matrix!(obs_prob, input, number_of_states, number_of_observations, index, files_obs)
+                        get_observation_matrix!(obs_prob_index, obs_prob_values, input, number_of_states, number_of_observations, index, files_obs)
                     end
 
                 elseif parsed_line[2] in keys(name_of_actions)
                     turn_into_number_obs!(parsed_line, name_of_states, name_of_actions, name_of_observations, [2])
                     input = parse(Int64, parsed_line[2])
 
-                    get_observation_matrix!(obs_prob, input, number_of_states, number_of_observations, index, files_obs)
+                    get_observation_matrix!(obs_prob_index, obs_prob_values, input, number_of_states, number_of_observations, index, files_obs)
                 else
                     error("BLABLA")
                 end
