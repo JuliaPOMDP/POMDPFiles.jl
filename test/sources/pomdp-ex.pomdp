@@ -30,6 +30,9 @@ T: west : cold : * 9.7
 T: west : almost-cold
 0.1 0.1 0.1 0.1 0 0.6
 
+T: west : cold
+uniform
+
 T: south 
 0.1 0.1 0.1 0.1 0 0.6
 0.1 0.1 0.1 0.1 0 0.6
