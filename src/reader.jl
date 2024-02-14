@@ -663,19 +663,30 @@ function turn_into_number!(parsed_line::Vector{String}, name_of_states::Dict{Str
     end
 end
 
-function get_transition_prob_number_same_line!(current_state, input, prob, trans_prob, number_of_states)
+function get_transition_prob_number_same_line!(current_state::Int64, input::Int64, prob::Vector{String}, trans_prob_index::Vector{Tuple{Int64, Int64, Int64}}, trans_prob_values::Vector{Float64}, number_of_states)
 
     if all(map(x -> !isnothing(tryparse(Float64,x)), prob)) && (length(prob) == number_of_states)
         prob = map(x->parse(Float64, x), prob)
         if testing_if_probability(prob)
             for (index, next_state) in enumerate(1:number_of_states)
-                trans_prob[(current_state,input,next_state)] = prob[index]
+                push!(trans_prob_index, (current_state, input, next_state))
+                push!(trans_prob_values, prob[index])
             end
         else
-            error("BLABLA")
+            @warn "This vector is not a probability measure"
+            println(prob, "Sum:", sum(prob))
         end
+    elseif isequal(prob, "uniform")
+        prob_val = 1/number_of_states
+        for next_state in 1:number_of_states
+            push!(trans_prob_index, (current_state, input, next_state))
+            push!(trans_prob_values, prob_val)
+        end
+    elseif isequal(prob, "identity")
+        push!(trans_prob_index, (current_state, input, current_state))
+        push!(trans_prob_values, 1)
     else
-        error("BLABLA")
+        error("I am not sure how to parse this line. Please check the file.")
     end
 end
 
@@ -961,7 +972,7 @@ function processing_transition_probability(number_of_states::Int64, number_of_ac
                             current_state = parse(Int64, parsed_line[3])
 
                             for input in 1:number_of_actions
-                                get_transition_prob_next_line!(current_state, input, trans_prob, index, number_of_states, trans_prob_occurences)
+                                get_transition_prob_next_line!(current_state, input, trans_prob_index, trans_prob_values, index, number_of_states, trans_prob_occurences)
                             end
                         elseif isequal(parsed_line[3], "*")
                             turn_into_number!(parsed_line, name_of_states, name_of_actions, [2])
@@ -969,19 +980,19 @@ function processing_transition_probability(number_of_states::Int64, number_of_ac
                             input = parse(Int64, parsed_line[2]) 
 
                             for current_state in 1:number_of_states
-                                get_transition_prob_next_line!(current_state, input, trans_prob, index, number_of_states, trans_prob_occurences)
+                                get_transition_prob_next_line!(current_state, input, trans_prob_index, trans_prob_values, index, number_of_states, trans_prob_occurences)
                             end
                         else
                             error("BLABLA")
                         end
                     elseif number_wild_cards == 2
                         for current_state in 1:number_of_states, input in 1:number_of_actions
-                            get_transition_prob_next_line!(current_state, input, trans_prob, index, number_of_states, trans_prob_occurences) 
+                            get_transition_prob_next_line!(current_state, input, trans_prob_index, trans_prob_values, index, number_of_states, trans_prob_occurences)
                         end
                     else
                         @warn "TBI: cannot parse this line \n\n"
                     end
-                else # the transition probability will be given in the same line
+                elseif length(checking_third_param) == 2  # the transition probability will be given in the same line
                     parsed_line[3] = ""
                     parsed_line = filter(x -> !isempty(x), parsed_line)
                     map(x -> push!(parsed_line,x), checking_third_param)
@@ -996,40 +1007,40 @@ function processing_transition_probability(number_of_states::Int64, number_of_ac
                         input = parse(Int64, parsed_line[2])
                         current_state = parse(Int64, parsed_line[3])
 
-                        get_transition_prob_number_same_line!(current_state, input, prob, trans_prob, number_of_states)
+                        get_transition_prob_number_same_line!(current_state, input, string.(prob), trans_prob_index, trans_prob_values, number_of_states)
 
                     elseif number_wild_cards == 1
                         if isequal(parsed_line[2], "*")
                             turn_into_number!(parsed_line, name_of_states, name_of_actions, [3])
 
                             current_state = parse(Int64, parsed_line[3])
+                            input = 0
 
-                            for input in 1:number_of_actions
-                                get_transition_prob_number_same_line!(current_state, input, prob, trans_prob, number_of_states)
-                            end
+                            get_transition_prob_number_same_line!(current_state, input, string.(prob), trans_prob_index, trans_prob_values, number_of_states)
 
                         elseif isequal(parsed_line[3], "*")
                             turn_into_number!(parsed_line, name_of_states, name_of_actions, [2])
 
                             input = parse(Int64, parsed_line[2])
-
-                            for current_state in 1:number_of_states
-                                get_transition_prob_number_same_line!(current_state, input, prob, trans_prob, number_of_states)
-                            end
+                            current_state = 0
+                            
+                            get_transition_prob_number_same_line!(current_state, input, string.(prob), trans_prob_index, trans_prob_values, number_of_states)
                         else
-                            error("BLABLA")
+                            error("More wild cards than expected. Please check the file.")
                         end
 
                     elseif number_wild_cards == 2
-                        for current_state = 1:number_of_states, input in 1:number_of_actions
-                            get_transition_prob_number_same_line!(current_state, input, prob, trans_prob, number_of_states)
-                        end
+                        current_state = 0
+                        input = 0
+
+                        get_transition_prob_number_same_line!(current_state, input, string.(prob), trans_prob_index, trans_prob_values, number_of_states)
                     else
                         print("TBI: transition_prob. Number of wild cards not implemented")
                     end
-                    
+                else
+                    error("I am not sure how to parse this line. Check the file.")
                 end
-
+                    
             elseif length(parsed_line) == 2 
             # T : <action>
                 if isequal(parsed_line[2], "*")

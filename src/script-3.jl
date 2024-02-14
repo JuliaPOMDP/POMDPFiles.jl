@@ -5,21 +5,35 @@ temp_dic = ((0,1,0),(1,0,0),(3,0,0),(3,2,2))
 prob = [0.4,0.6,0.5,0.7]
 dd = OrderedDict(tt => prob[index] for (index, tt) in enumerate(temp_dic))
 
-struct TransitionProb{T} 
+abstract type ProbabilityLookup end;
+
+struct TransitionProb{T}  <: ProbabilityLookup
     x::OrderedDict{Tuple{Vararg{T}}, Float64}
     number_of_states::Int64
     number_of_actions::Int64
 end
 
-struct ObservationProb{T} 
-    x::OrderedDict{Tuple{Vararg{T}}, Float64}
+struct ObservationProb{T, N}  <: ProbabilityLookup where {T <: Real}
+    x::OrderedDict{NTuple{N, T}, Float64}
     number_of_states::Int64
     number_of_actions::Int64
     number_of_observations::Int64
 end
 
+max_num_states(::TransitionProb) = 1
+max_num_states(::ObservationProb) = 1
 
-function Base.getindex(obj:: TransitionProb, key::Tuple{Vararg{Int}})
+function Base.getindex(obj:: ProbabilityLookup, key::Tuple{Vararg{Int}})
+    # ...
+end
+
+function foo(args::Vararg{N, Int}...) where {N}
+    N == length(args)
+    @show N
+end
+NTuple{3, Int} == Tuple{Int, Int, Int}
+
+function Base.getindex(obj:: TransitionProb, key::NTuple{Vararg{Int}})
     keys_obj = keys(obj.x) |> collect
     n = length(key)
 
