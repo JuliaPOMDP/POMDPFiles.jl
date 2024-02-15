@@ -666,7 +666,7 @@ end
 
 max_num_states(trans_prob::TransitionProb) = [trans_prob.number_of_states, trans_prob.number_of_actions, trans_prob.number_of_states]
 max_num_states(obs_prob::ObservationProb) = [obs_prob.number_of_states, obs_prob.number_of_actions, obs_prob.number_of_observations]
-max_num_states(reward::RewardLookUp) = [reward.number_of_states, reward.number_of_states, reward.number_of_observations]
+max_num_states(reward::RewardLookUp) = [reward.number_of_states, reward.number_of_actions, reward.number_of_states, reward.number_of_observations]
 
 dict(trans_prob::TransitionProb) = trans_prob.trans_parsed
 dict(obs_prob::ObservationProb) = obs_prob.obs_parsed
@@ -717,7 +717,7 @@ function Base.getindex(reward::RewardLookUp, key::NTuple{4, Int})
     max_num = max_num_states(reward) 
 
     if !isequal(n,4)
-        error("The key argument must be an integer tuple of size equal to 3")
+        error("The key argument must be an integer tuple of size equal to 4")
     end
 
     if any(x -> x <= 0, key) || any(key[i] > max_num[i] for i in 1:n)
@@ -1645,12 +1645,6 @@ end
 
 ################ Auxiliary functions -- REWARD ################## 
 
-function get_values_singles_line_same_line!(current_state::Int64, input::Int64, next_state::Int64, obs::Int64, values::Float64, values_dic::Dict{Tuple{Int64, Int64, Int64, Int64}, Float64})
-    
-    values_dic[(current_state, input, next_state, obs)] = values
-
-end
-
 function turn_into_number_values!(parsed_line::Vector{String}, name_of_states::Dict{String, Int64}, name_of_actions::Dict{String, Int64}, name_of_observations::Dict{String, Int64}, indices::Vector{Int64})
     # If we define numbers for states this function may not work well
 
@@ -1686,7 +1680,9 @@ end
 
 function processing_reward_function(number_of_states::Int64, number_of_actions::Int64, number_of_observations::Int64, name_of_states::Dict{String,Int64}, name_of_actions::Dict{String,Int64}, name_of_observations::Dict{String, Int64}, files_values::Vector{String})
 
-    values_dic = Dict((states, actions, next_state, observations) => 0. for states in 1:number_of_states, actions in 1:number_of_actions, next_state in 1:number_of_states, observations in 1:number_of_observations)
+    # values_dic = Dict((states, actions, next_state, observations) => 0. for states in 1:number_of_states, actions in 1:number_of_actions, next_state in 1:number_of_states, observations in 1:number_of_observations)
+    reward_index = Vector{NTuple{4, Int64}}()
+    reward_values = Vector{Float64}()
 
     for (index, lines) in enumerate(files_values)
         if isequal(get_before_semicolon(lines) |> strip, "R")
@@ -1712,12 +1708,13 @@ function processing_reward_function(number_of_states::Int64, number_of_actions::
                     if length(parsed_line) == 6
                         values = parse(Float64, parsed_line[6])
                     else
-                        @warn "I am setting the rewards/cost to be zero \n\n"
+                        @warn "I am setting the rewards/cost to be zero"
                         values = 0.
                     end
                     
-                    get_values_singles_line_same_line!(current_state, input, next_state, obs, values, values_dic)
-
+                    push!(reward_index, (current_state, input, next_state, obs))
+                    push!(reward_values, values)
+                    
                 elseif number_wild_cards == 1
                     if isequal(parsed_line[2], "*") 
                         turn_into_number_values!(parsed_line, name_of_states, name_of_actions, name_of_observations, [3,4,5])
@@ -1725,6 +1722,7 @@ function processing_reward_function(number_of_states::Int64, number_of_actions::
                         current_state = parse(Int64, parsed_line[3])
                         next_state = parse(Int64, parsed_line[4])
                         obs = parse(Int64, parsed_line[5])
+                        input = 0
 
                         if length(parsed_line) == 6
                             values = parse(Float64, parsed_line[6])
@@ -1732,14 +1730,15 @@ function processing_reward_function(number_of_states::Int64, number_of_actions::
                             @warn "I am setting the rewards/cost to be zero \n\n"
                             values = 0.
                         end
-                       
-                        for input in 1:number_of_actions
-                            get_values_singles_line_same_line!(current_state, input, next_state, obs, values, values_dic)
-                        end
+                        
+                        push!(reward_index, (current_state, input, next_state, obs))
+                        push!(reward_values, values)
+
                     elseif isequal(parsed_line[3], "*")
                         turn_into_number_values!(parsed_line, name_of_states, name_of_actions, name_of_observations, [2,4,5])
 
                         input = parse(Int64, parsed_line[2])
+                        current_state = 0
                         next_state = parse(Int64, parsed_line[4])
                         obs = parse(Int64, parsed_line[5])
 
@@ -1749,15 +1748,16 @@ function processing_reward_function(number_of_states::Int64, number_of_actions::
                             @warn "I am setting the rewards/cost to be zero \n\n"
                             values = 0.
                         end
+                        
+                        push!(reward_index, (current_state, input, next_state, obs))
+                        push!(reward_values, values)
                     
-                        for current_state in 1:number_of_states
-                            get_values_singles_line_same_line!(current_state, input, next_state, obs, values, values_dic)
-                        end
                     elseif isequal(parsed_line[4], "*")
                         turn_into_number_values!(parsed_line, name_of_states, name_of_actions, name_of_observations, [2,3,5])
 
                         input = parse(Int64, parsed_line[2])
                         current_state = parse(Int64, parsed_line[3])
+                        next_state = 0
                         obs = parse(Int64, parsed_line[5])
 
                         if length(parsed_line) == 6
@@ -1766,11 +1766,9 @@ function processing_reward_function(number_of_states::Int64, number_of_actions::
                             @warn "I am setting the rewards/cost to be zero \n\n"
                             values = 0.
                         end
-                    
-                        for next_state in 1:number_of_states
-                            get_values_singles_line_same_line!(current_state, input, next_state, obs, values, values_dic)
-                        end
-                    
+                        
+                        push!(reward_index, (current_state, input, next_state, obs))
+                        push!(reward_values, values)
                     
                     elseif isequal(parsed_line[5], "*")
                         turn_into_number_values!(parsed_line, name_of_states, name_of_actions, name_of_observations, [2,3,4])
@@ -1778,6 +1776,7 @@ function processing_reward_function(number_of_states::Int64, number_of_actions::
                         input = parse(Int64, parsed_line[2])
                         current_state = parse(Int64, parsed_line[3])
                         next_state = parse(Int64, parsed_line[4])
+                        obs = 0
 
                         if length(parsed_line) == 6
                             values = parse(Float64, parsed_line[6])
@@ -1785,10 +1784,9 @@ function processing_reward_function(number_of_states::Int64, number_of_actions::
                             @warn "I am setting the rewards/cost to be zero \n\n"
                             values = 0.
                         end
-                    
-                        for obs in 1:number_of_observations
-                            get_values_singles_line_same_line!(current_state, input, next_state, obs, values, values_dic)
-                        end
+                        
+                        push!(reward_index, (current_state, input, next_state, obs))
+                        push!(reward_values, values)
                     end
                 elseif number_wild_cards == 2
 
@@ -1802,14 +1800,13 @@ function processing_reward_function(number_of_states::Int64, number_of_actions::
 
                         turn_into_number_values!(parsed_line, name_of_states, name_of_actions, name_of_observations, [4, 5])
 
+                        input = 0
+                        current_state = 0
                         next_state = parse(Int64, parsed_line[4])
                         obs = parse(Int64, parsed_line[5]) 
-
-                        for input in 1:number_of_actions, current_state in 1:number_of_states
-                            get_values_singles_line_same_line!(current_state, input, next_state, obs, values, values_dic)
-                        end
-
                         
+                        push!(reward_index, (current_state, input, next_state, obs))
+                        push!(reward_values, values)
                     end
                     
                     if isequal(parsed_line[2], "*") && isequal(parsed_line[4], "*")
@@ -1820,14 +1817,16 @@ function processing_reward_function(number_of_states::Int64, number_of_actions::
                             @warn "I am setting the rewards/cost to be zero \n\n"
                             values = 0.
                         end
+                    
                         turn_into_number_values!(parsed_line, name_of_states, name_of_actions, name_of_observations, [3, 5])
 
                         current_state = parse(Int64, parsed_line[3])
                         obs = parse(Int64, parsed_line[5]) 
-
-                        for input in 1:number_of_actions, next_state in 1:number_of_states
-                            get_values_singles_line_same_line!(current_state, input, next_state, obs, values, values_dic)
-                        end
+                        input = 0
+                        next_state = 0
+                        
+                        push!(reward_index, (current_state, input, next_state, obs))
+                        push!(reward_values, values)
                     end
                     
                     if isequal(parsed_line[2], "*") && isequal(parsed_line[5], "*")
@@ -1843,14 +1842,16 @@ function processing_reward_function(number_of_states::Int64, number_of_actions::
                         turn_into_number_values!(parsed_line, name_of_states, name_of_actions, name_of_observations, [3, 4])
 
                         current_state = parse(Int64, parsed_line[3])
+                        input = 0
+                        obs = 0
                         next_state = parse(Int64, parsed_line[4]) 
                         
-                        for input in 1:number_of_actions, obs in 1:number_of_observations
-                            get_values_singles_line_same_line!(current_state, input, next_state, obs, values, values_dic)
-                        end
+                        push!(reward_index, (current_state, input, next_state, obs))
+                        push!(reward_values, values)
                     end
                     
                     if isequal(parsed_line[3], "*") && isequal(parsed_line[4], "*")
+                        # println(parsed_line)
 
                         if length(parsed_line) == 6
                             values = parse(Float64, parsed_line[6])
@@ -1861,11 +1862,13 @@ function processing_reward_function(number_of_states::Int64, number_of_actions::
                         turn_into_number_values!(parsed_line, name_of_states, name_of_actions, name_of_observations, [2, 5])
 
                         input = parse(Int64, parsed_line[2])
+                        current_state = 0
+                        next_state = 0
                         obs = parse(Int64, parsed_line[5]) 
                         
-                        for current_state in 1:number_of_states, next_state in 1:number_of_states
-                            get_values_singles_line_same_line!(current_state, input, next_state, obs, values, values_dic)
-                        end
+                        push!(reward_index, (current_state, input, next_state, obs))
+                        push!(reward_values, values)
+                        
                     end
 
                     if isequal(parsed_line[3], "*") && isequal(parsed_line[5], "*")
@@ -1879,11 +1882,12 @@ function processing_reward_function(number_of_states::Int64, number_of_actions::
                         turn_into_number_values!(parsed_line, name_of_states, name_of_actions, name_of_observations, [2, 4])
 
                         input = parse(Int64, parsed_line[2])
+                        current_state = 0
+                        obs = 0
                         next_state = parse(Int64, parsed_line[4]) 
                         
-                        for current_state in 1:number_of_states, obs in 1:number_of_observations
-                            get_values_singles_line_same_line!(current_state, input, next_state, obs, values, values_dic)
-                        end
+                        push!(reward_index, (current_state, input, next_state, obs))
+                        push!(reward_values, values)
                     end
                     
                     if isequal(parsed_line[4], "*") && isequal(parsed_line[5], "*")
@@ -1898,12 +1902,15 @@ function processing_reward_function(number_of_states::Int64, number_of_actions::
 
                         input = parse(Int64, parsed_line[2])
                         current_state = parse(Int64, parsed_line[3]) 
+                        next_state = 0
+                        obs = 0
                         
-                        for next_state in 1:number_of_states, obs in 1:number_of_observations
-                            get_values_singles_line_same_line!(current_state, input, next_state, obs, values, values_dic)
-                        end
+                        push!(reward_index, (current_state, input, next_state, obs))
+                        push!(reward_values, values)
                     end
                 elseif number_wild_cards == 3
+
+                    parsed_line = filter(x->!isempty(x), parsed_line)
 
                     if length(parsed_line) == 6
                         values = parse(Float64, parsed_line[6])
@@ -1916,41 +1923,48 @@ function processing_reward_function(number_of_states::Int64, number_of_actions::
                         turn_into_number_values!(parsed_line, name_of_states, name_of_actions, name_of_observations, [5])
 
                         obs = parse(Int64, parsed_line[5])
-
-                        for input in 1:number_of_actions, current_state in 1:number_of_states, next_state in 1:number_of_states
-                            get_values_singles_line_same_line!(current_state, input, next_state, obs, values, values_dic)
-                        end
+                        input = 0
+                        current_state = 0
+                        next_state = 0
+                        
+                        push!(reward_index, (current_state, input, next_state, obs))
+                        push!(reward_values, values)
                     end
 
                     if isequal(parsed_line[2], "*") && isequal(parsed_line[3], "*") && isequal(parsed_line[5], "*")
                         turn_into_number_values!(parsed_line, name_of_states, name_of_actions, name_of_observations, [4])
 
                         next_state = parse(Int64, parsed_line[4])
+                        input = 0
+                        current_state = 0
+                        obs = 0
 
-                        for input in 1:number_of_actions, current_state in 1:number_of_states, obs in 1:number_of_observations
-                            get_values_singles_line_same_line!(current_state, input, next_state, obs, values, values_dic)
-                        end
+                        push!(reward_index, (current_state, input, next_state, obs))
+                        push!(reward_values, values)
                     end
                     
                     if isequal(parsed_line[2], "*") && isequal(parsed_line[4], "*") && isequal(parsed_line[5], "*")
                         turn_into_number_values!(parsed_line, name_of_states, name_of_actions, name_of_observations, [3])
 
                         current_state = parse(Int64, parsed_line[3])
-
-                        for input in 1:number_of_actions, next_state in 1:number_of_states, obs in 1:number_of_observations
-                            get_values_singles_line_same_line!(current_state, input, next_state, obs, values, values_dic)
-                        end
+                        input = 0
+                        next_state = 0
+                        obs = 0
+                        
+                        push!(reward_index, (current_state, input, next_state, obs))
+                        push!(reward_values, values)
                     end
-                    
                     
                     if isequal(parsed_line[3], "*") && isequal(parsed_line[4], "*") && isequal(parsed_line[5], "*")
                         turn_into_number_values!(parsed_line, name_of_states, name_of_actions, name_of_observations, [2])
 
                         input = parse(Int64, parsed_line[2])
-
-                        for current_state in 1:number_of_states, next_state in 1:number_of_states, obs in 1:number_of_observations
-                            get_values_singles_line_same_line!(current_state, input, next_state, obs, values, values_dic)
-                        end
+                        current_state = 0
+                        next_state = 0
+                        obs = 0
+                        
+                        push!(reward_index, (current_state, input, next_state, obs))
+                        push!(reward_values, values)
                     end
                 elseif number_wild_cards == 4
 
@@ -1961,14 +1975,23 @@ function processing_reward_function(number_of_states::Int64, number_of_actions::
                         values = 0.
                     end
 
-                    for input in 1:number_of_actions, current_state in 1:number_of_states, next_state in 1:number_of_states, obs in 1:number_of_observations
-                            get_values_singles_line_same_line!(current_state, input, next_state, obs, values, values_dic)
-                    end
+                    input = 0
+                    current_state = 0
+                    next_state = 0
+                    obs = 0
+                    
+                    push!(reward_index, (current_state, input, next_state, obs))
+                    push!(reward_values, values)
+
                 end
 
             end
         end
     end
 
-    return values_dic
+    @assert length(reward_index) == length(reward_values) "Error while constructing the transition probability. Keys and values must have the same size."
+
+    value_prob = OrderedDict(key => reward_values[index] for (index, key) in enumerate(reward_index))
+
+    return RewardValue{Int64}(value_prob, number_of_states, number_of_actions, number_of_observations)
 end
