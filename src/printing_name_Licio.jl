@@ -1,7 +1,7 @@
 
 using POMDPs, Distributions
 
-mutable struct MyPOMDP <: POMDP{Int, Int, Int} 
+struct MyPOMDP <: POMDP{Int, Int, Int} 
     number_of_states::Int64
     name_of_states::Vector{String}
 

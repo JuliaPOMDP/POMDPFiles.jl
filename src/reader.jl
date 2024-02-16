@@ -152,7 +152,8 @@ function read_pomdp(filename::AbstractString)
 
     values_matrix = processing_reward_function(states.number_of_states, actions.number_of_actions, observations.number_of_observations, dic_states, dic_action, dic_obs, files_values)
 
-    return transition_prob, obs_prob, values_matrix, init_state_info
+
+    return discount[1], states, actions, observations, transition_prob, obs_prob, values_matrix, init_state_info
 end
 
 ######################## Main structures ########################
@@ -1998,16 +1999,15 @@ end
 
 ############ GENERATING JULIA CODE WITH THE INFORMATION READ ########################
 
-
 function generate_julia_pomdp_struct(name_of_file::String, name_of_POMDP::String) 
 
     packages_def = """
 
-    using POMDPs, Distributions
+    using POMDPs, Distributions, POMDPModelTools
     """
 
     struct_def = """
-    mutable struct $name_of_POMDP <: POMDP{Int, Int, Int} 
+    struct $name_of_POMDP <: POMDP{Int, Int, Int} 
         number_of_states::Int64
         name_of_states::Vector{String}
 
@@ -2022,17 +2022,17 @@ function generate_julia_pomdp_struct(name_of_file::String, name_of_POMDP::String
 
         discount::Float64
 
-        T::OrderedDict{NTuple{3, Int64}, Float64}
-        O::OrderedDict{NTuple{3, Int64}, Float64}
-        R::OrderedDict{NTuple{4, Int64}, Float64}
+        T::TransitionProb
+        O::ObservationProb
+        R::RewardLookUp
     end
     """
 
     constructor_def = """
 
-    $name_of_POMDP(s::StateParam, a::ActionsParam, o::ObservationParam, initial_state::InitialStateParam, discount::Float64, T::OrderedDict{NTuple{3, Int64}, Float64}, O::OrderedDict{NTuple{3, Int64}, Float64}, R::OrderedDict{NTuple{4, Int64}, Float64}) = $name_of_POMDP(s.number_of_states, s.names_of_states, a.number_of_actions, a.names_of_actions, o.number_of_observations, o.names_of_observations, initial_state.support_of_distribution, initial_state.value_of_distribution, discount, T, O, R)
+    $name_of_POMDP(s::StateParam, a::ActionsParam, o::ObservationParam, initial_state::InitialStateParam, discount::Float64, T::TransitionProb, O::ObservationProb, R::RewardLookUp)= $name_of_POMDP(s.number_of_states, s.names_of_states, a.number_of_actions, a.names_of_actions, o.number_of_observations, o.names_of_observations, initial_state.support_of_distribution, initial_state.value_of_distribution, discount, T, O, R)
 
-    $name_of_POMDP(s::StateParam, a::ActionsParam, o::ObservationParam, discount::Float64, T::OrderedDict{NTuple{3, Int64}, Float64}, O::OrderedDict{NTuple{3, Int64}, Float64}, R::OrderedDict{NTuple{4, Int64}, Float64}) = $name_of_POMDP(s.number_of_states, s.names_of_states, a.number_of_actions, a.names_of_actions, o.number_of_observations, o.names_of_observations, [], [], discount, T, O, R)
+    $name_of_POMDP(s::StateParam, a::ActionsParam, o::ObservationParam, discount::Float64, T::TransitionProb, O::ObservationProb, R::RewardLookUp) = $name_of_POMDP(s.number_of_states, s.names_of_states, a.number_of_actions, a.names_of_actions, o.number_of_observations, o.names_of_observations, [], [], discount, T, O, R)
     """
 
     states_def = """
@@ -2082,7 +2082,7 @@ function generate_julia_pomdp_struct(name_of_file::String, name_of_POMDP::String
 
     function observation(m::$name_of_POMDP, s::Int64, a::Int64)
 
-        prob_obs = [m.O[(s, a, obs) for obs in 1:m.number_of_observations]]
+        prob_obs = [m.O[(s, a, obs)] for obs in 1:m.number_of_observations]
 
         return SparseCat(1:m.number_of_observations, prob_obs)
     end
@@ -2111,6 +2111,7 @@ function generate_julia_pomdp_struct(name_of_file::String, name_of_POMDP::String
         println(io, struct_def*constructor_def)
         println(io, states_def*actions_def*obs_def*initial_state_def)
         println(io, transition_def*observation_def*reward_def)
+
         println(io, discount_def)
     end
     
