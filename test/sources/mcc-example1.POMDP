@@ -24,7 +24,7 @@ observations: O1 O2 OX
 # Transition probabiities
 
 # No matter what we do, we assume that after buying they leave
-T:  * : SB : SX   1.0
+T :  * : SB : SX   1.0
 
 # We assume that both customer types are equally likely
 T:  * : SX : S1   0.5

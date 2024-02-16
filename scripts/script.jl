@@ -1,7 +1,7 @@
 using Base.Filesystem
 using Test
 
-include("./reader.jl")
+include("./../src/reader.jl")
 
 dir_path = "./../test/sources/"
 all_files_path = reading_pomdp_dir(dir_path)
