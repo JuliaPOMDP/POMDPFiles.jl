@@ -90,63 +90,63 @@ function read_pomdp(filename::AbstractString)
     # Reading the preamble of the file
     test_preamble = (length(lines) < 200) ? check_preamble_fields(lines[1:end]) : check_preamble_fields(lines[1:200])
 
-    println(test_preamble)
-
     discount, type_reward, actions, states, observations = processing_preamble(test_preamble)
 
-    # # Processing the initial distribution
-    # init_state_lines = get_all_occurences(lines, ["start", "start include", "start exclude"])
+    # Processing the initial distribution
+    regex_init_cond = r"\s*start include\s*:|\s*start exclude\s*:|\s*start\s*:"
 
-    # if !isempty(states.names_of_states) 
-    #     ss_dic = Dict{String, Int64}(nn => index for (index, nn) in enumerate(string.(states.names_of_states)))
-    # else
-    #     ss_dic = Dict{String,Int64}()
-    # end
 
-    # if !isempty(states.number_of_states)
-    #     init_state_lines_f = filter(x -> !isnothing(x), init_state_lines)
-    #     init_state_info = processing_initial_distribution(states.number_of_states, ss_dic, lines[sort(init_state_lines_f)])
-    # end
+    init_state_lines = findall(startswith.(lines, regex_init_cond)) 
+
+    ss_dic = Dict{String, Int64}(nn => index for (index, nn) in enumerate(string.(states.names_of_states)))
+
+    if !isempty(lines[init_state_lines])
+        init_state_info = processing_initial_distribution(states.number_of_states, ss_dic, lines[init_state_lines])
+    end
 
     # # Processing transition probability
 
-    # sorted_fields = order_of_transition_reward_observation(lines, 1)
+    sorted_fields = order_of_transition_reward_observation(lines, 1)
 
-    # files_transition = []
-    # files_obs = []
-    # files_values = []
+    files_transition = []
+    files_obs = []
+    files_values = []
 
-    # # Finding the chunk of the file with the transition, observation, and reward specifications
-    # for (index, (type_of_matrix, line_number)) in enumerate(sorted_fields)
+    # Finding the chunk of the file with the transition, observation, and reward specifications
+    for (index, (type_of_matrix, line_number)) in enumerate(sorted_fields)
 
-    #     if index + 1 <= length(sorted_fields)
-    #         range_spec = line_number:(sorted_fields[index+1][2] -1)
-    #         if isequal(type_of_matrix, "T")
-    #             files_transition = lines[range_spec]
-    #         end
-    #         if isequal(type_of_matrix, "O")
-    #             files_obs = lines[range_spec]
-    #         end
-    #         if isequal(type_of_matrix, "R")
-    #             files_values = lines[range_spec]
-    #         end
-    #     else
-    #         range_spec = (line_number:length(lines))
-    #         if isequal(type_of_matrix, "T")
-    #             files_transition = lines[range_spec]
-    #         end
-    #         if isequal(type_of_matrix, "O")
-    #             files_obs = lines[range_spec]
-    #         end
-    #         if isequal(type_of_matrix, "R")
-    #             files_values = lines[range_spec]
-    #         end
-    #     end
-    # end
+        if index  < length(sorted_fields)
+            range_spec = line_number:(sorted_fields[index+1][2] -1)
+            if isequal(type_of_matrix, "T")
+                files_transition = lines[range_spec]
+            end
+            if isequal(type_of_matrix, "O")
+                files_obs = lines[range_spec]
+            end
+            if isequal(type_of_matrix, "R")
+                files_values = lines[range_spec]
+            end
+        else
+            range_spec = (line_number:length(lines))
+            if isequal(type_of_matrix, "T")
+                files_transition = lines[range_spec]
+            end
+            if isequal(type_of_matrix, "O")
+                files_obs = lines[range_spec]
+            end
+            if isequal(type_of_matrix, "R")
+                files_values = lines[range_spec]
+            end
+        end
+    end
 
-    # dic_action = Dict(string(name) => index for (index, name) in enumerate(actions.names_of_actions))
-    # dic_states = Dict(string(name) => index for (index, name) in enumerate(states.names_of_states))
-    # dic_obs = Dict(string(name) => index for (index, name) in enumerate(observations.names_of_observations))
+    dic_action = Dict(string(name) => index for (index, name) in enumerate(actions.names_of_actions))
+    dic_states = Dict(string(name) => index for (index, name) in enumerate(states.names_of_states))
+    dic_obs = Dict(string(name) => index for (index, name) in enumerate(observations.names_of_observations))
+
+    # println(dic_action)
+    # println(dic_states)
+    # println(dic_obs)
 
         
     # transition_prob = processing_transition_probability(states.number_of_states, actions.number_of_actions, dic_states, dic_action, files_transition)
@@ -228,10 +228,6 @@ end
 
 InitialStateParam() = InitialStateParam{Int64}(0, "", Set{Int64}([]), Vector{Float64}([])) 
 InitialStateParam(size_of_states::Int64) = InitialStateParam{Int64}(size_of_states, "", Set{Int64}([]), Vector{Float64}([])) 
-
-# ######## GETTING THE LINES FOR AN OCCURENCE OF A STRING IN THE FILE ##################
-
-
 
 ############# Setting-up a test dataset ####################
 
@@ -388,9 +384,18 @@ function dealing_with_partial_numbers(ordinal_dictionary::Dict{String, Int64}, i
 end
 
 function order_of_transition_reward_observation(file_lines::Vector{String}, start_line::Int64) 
-    key_field = ["T", "O", "R"]
-    dict_scanning = Dict(field => get_first_occurence(file_lines, field) for field in key_field)
+
+    key_field = ["O", "T", "R"]
+    regex_fields = Vector{String}()
+
+    [push!(regex_fields, "\\s*$field\\s*:") for field in key_field]
+
+    indices = map(x-> findfirst(startswith.(file_lines, Regex(x))), regex_fields)
+
+    dict_scanning = Dict(field => indices[ii] for (ii, field) in enumerate(key_field)) 
     sorted_fields = sort(collect(pairs(dict_scanning)), by=x->x[2])
+
+    # println(sorted_fields)
 
     return sorted_fields
 end
@@ -460,7 +465,8 @@ function check_preamble_fields(file_lines::Vector{String})
                     temp_match = get_after_semicolon(file_lines[index_in_file]) |> strip
                 else
                     range_spec = index_in_file:(next_indices-1)
-                    temp_match = join(file_lines[range_spec]) |> get_after_semicolon |> strip
+
+                    temp_match = join(file_lines[range_spec], " ") |> get_after_semicolon |> strip
                 end
             end
 
@@ -507,7 +513,7 @@ function processing_initial_distribution_start(state_size::Int64, after_semicolo
     if !isnothing(aux_var) # testing whether is a number
 
         if aux_var > state_size
-            error("BLABLA")
+            error("Unable to parse the initial state since initial condition is larger than the size of the state space.")
         end
 
         value_of_distribution = Diagonal(ones(Float64, state_size))[:,aux_var]
@@ -544,7 +550,7 @@ function processing_initial_distribution_start(state_size::Int64, after_semicolo
         if !isnothing(support_of_distribution) 
             return InitialStateParam{Int64}(state_size, "uniform", support_of_distribution, vec(value_of_distribution)) 
         else
-            error("BLABLA")
+            error("Unable to parse the initial distribution.")
         end
     end
 
@@ -588,7 +594,7 @@ function processing_initial_distribution_start_include(state_initial_param::Init
         return InitialStateParam{Int64}(state_size, "uniform", support_of_distribution, vec(value_of_distribution)) 
 
     else
-        error("BLABLA")
+        error("Unable to parse the start include line.")
     end
 
     # jk
@@ -628,7 +634,7 @@ function processing_initial_distribution_start_exclude(state_initial_param::Init
         value_of_distribution = (1/length(support_of_distribution))*sum(Diagonal(ones(state_size))[:,collect(support_of_distribution)], dims=2)
 
     else
-        print("To be implemented")
+        error("Unable to parse the start exclude line.")
     end
     
     return InitialStateParam{Int64}(state_size, "uniform", support_of_distribution, vec(value_of_distribution)) 
