@@ -12,7 +12,7 @@
 # they may buy one of your products.
 
 values: reward
-discount: 0.75
+    discount      :     0.75
 
 states: S1 S2 SX SB
 

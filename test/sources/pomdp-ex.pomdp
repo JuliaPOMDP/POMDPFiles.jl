@@ -1,15 +1,21 @@
-discount: 0.1
-values: reward
+discount: 
+0.1
+values: 
+reward
 states: warm cold not-to-cold very-very-cold almost-cold ow-this-is-very-cold
 actions: north south east west 
-observations: warning more-warning 
+observations: 
+warning more-warning 
+
+
 start: second-state fourth-state fifth-state third-state 
 start: 
 
 "uniform"
 
 start: 2 
-start: [0.1, 0.7, 0., 0., 0., 0.2]
+start: 
+[0.1, 0.7, 0., 0., 0., 0.2]
 start: 2 4 6 
 start include: 
 

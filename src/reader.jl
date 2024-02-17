@@ -88,72 +88,75 @@ function read_pomdp(filename::AbstractString)
 
     lines = open(readlines, filename) |> remove_comments_and_white_space
     # Reading the preamble of the file
-    test_preamble, ~ = check_preamble_fields(lines)
+    test_preamble = (length(lines) < 200) ? check_preamble_fields(lines[1:end]) : check_preamble_fields(lines[1:200])
+
+    println(test_preamble)
+
     discount, type_reward, actions, states, observations = processing_preamble(test_preamble)
 
-    # Processing the initial distribution
-    init_state_lines = get_all_occurences(lines, ["start", "start include", "start exclude"])
+    # # Processing the initial distribution
+    # init_state_lines = get_all_occurences(lines, ["start", "start include", "start exclude"])
 
-    if !isempty(states.names_of_states) 
-        ss_dic = Dict{String, Int64}(nn => index for (index, nn) in enumerate(string.(states.names_of_states)))
-    else
-        ss_dic = Dict{String,Int64}()
-    end
+    # if !isempty(states.names_of_states) 
+    #     ss_dic = Dict{String, Int64}(nn => index for (index, nn) in enumerate(string.(states.names_of_states)))
+    # else
+    #     ss_dic = Dict{String,Int64}()
+    # end
 
-    if !isempty(states.number_of_states)
-        init_state_lines_f = filter(x -> !isnothing(x), init_state_lines)
-        init_state_info = processing_initial_distribution(states.number_of_states, ss_dic, lines[sort(init_state_lines_f)])
-    end
+    # if !isempty(states.number_of_states)
+    #     init_state_lines_f = filter(x -> !isnothing(x), init_state_lines)
+    #     init_state_info = processing_initial_distribution(states.number_of_states, ss_dic, lines[sort(init_state_lines_f)])
+    # end
 
-    # Processing transition probability
+    # # Processing transition probability
 
-    sorted_fields = order_of_transition_reward_observation(lines, 1)
+    # sorted_fields = order_of_transition_reward_observation(lines, 1)
 
-    files_transition = []
-    files_obs = []
-    files_values = []
+    # files_transition = []
+    # files_obs = []
+    # files_values = []
 
-    # Finding the chunk of the file with the transition, observation, and reward specifications
-    for (index, (type_of_matrix, line_number)) in enumerate(sorted_fields)
+    # # Finding the chunk of the file with the transition, observation, and reward specifications
+    # for (index, (type_of_matrix, line_number)) in enumerate(sorted_fields)
 
-        if index + 1 <= length(sorted_fields)
-            range_spec = line_number:(sorted_fields[index+1][2] -1)
-            if isequal(type_of_matrix, "T")
-                files_transition = lines[range_spec]
-            end
-            if isequal(type_of_matrix, "O")
-                files_obs = lines[range_spec]
-            end
-            if isequal(type_of_matrix, "R")
-                files_values = lines[range_spec]
-            end
-        else
-            range_spec = (line_number:length(lines))
-            if isequal(type_of_matrix, "T")
-                files_transition = lines[range_spec]
-            end
-            if isequal(type_of_matrix, "O")
-                files_obs = lines[range_spec]
-            end
-            if isequal(type_of_matrix, "R")
-                files_values = lines[range_spec]
-            end
-        end
-    end
+    #     if index + 1 <= length(sorted_fields)
+    #         range_spec = line_number:(sorted_fields[index+1][2] -1)
+    #         if isequal(type_of_matrix, "T")
+    #             files_transition = lines[range_spec]
+    #         end
+    #         if isequal(type_of_matrix, "O")
+    #             files_obs = lines[range_spec]
+    #         end
+    #         if isequal(type_of_matrix, "R")
+    #             files_values = lines[range_spec]
+    #         end
+    #     else
+    #         range_spec = (line_number:length(lines))
+    #         if isequal(type_of_matrix, "T")
+    #             files_transition = lines[range_spec]
+    #         end
+    #         if isequal(type_of_matrix, "O")
+    #             files_obs = lines[range_spec]
+    #         end
+    #         if isequal(type_of_matrix, "R")
+    #             files_values = lines[range_spec]
+    #         end
+    #     end
+    # end
 
-    dic_action = Dict(string(name) => index for (index, name) in enumerate(actions.names_of_actions))
-    dic_states = Dict(string(name) => index for (index, name) in enumerate(states.names_of_states))
-    dic_obs = Dict(string(name) => index for (index, name) in enumerate(observations.names_of_observations))
+    # dic_action = Dict(string(name) => index for (index, name) in enumerate(actions.names_of_actions))
+    # dic_states = Dict(string(name) => index for (index, name) in enumerate(states.names_of_states))
+    # dic_obs = Dict(string(name) => index for (index, name) in enumerate(observations.names_of_observations))
 
         
-    transition_prob = processing_transition_probability(states.number_of_states, actions.number_of_actions, dic_states, dic_action, files_transition)
+    # transition_prob = processing_transition_probability(states.number_of_states, actions.number_of_actions, dic_states, dic_action, files_transition)
 
-    obs_prob = processing_observations_probability(states.number_of_states, actions.number_of_actions, observations.number_of_observations, dic_states, dic_action, dic_obs, files_obs)
+    # obs_prob = processing_observations_probability(states.number_of_states, actions.number_of_actions, observations.number_of_observations, dic_states, dic_action, dic_obs, files_obs)
 
-    values_matrix = processing_reward_function(states.number_of_states, actions.number_of_actions, observations.number_of_observations, dic_states, dic_action, dic_obs, files_values)
+    # values_matrix = processing_reward_function(states.number_of_states, actions.number_of_actions, observations.number_of_observations, dic_states, dic_action, dic_obs, files_values)
 
 
-    return discount[1], states, actions, observations, transition_prob, obs_prob, values_matrix, init_state_info
+    # return discount[1], states, actions, observations, transition_prob, obs_prob, values_matrix, init_state_info
 end
 
 ######################## Main structures ########################
@@ -310,17 +313,20 @@ function read_ordinal_file(file_name::String; state_size = 20)
 end
 
 
-function convert_to_date_structure(field::String, preamble_config::Dict{String,Any}) 
+function convert_to_date_structure(field::String, preamble_config::Dict{String,String}) 
 
     entry = preamble_config[field]
     entry = replace(entry, r"\"+" => "")
-    test_entry = tryparse(Int, entry)
+    # println(entry)
+    test_entry = tryparse(Int64, entry)
 
-    if typeof(test_entry) == Int
+    if typeof(test_entry) == Int64
         param = test_entry
     else
         param = split(entry)
     end
+
+    # println(param)
 
     return param 
 end
@@ -407,59 +413,76 @@ end
 
 function check_preamble_fields(file_lines::Vector{String})
     key_fields = ["discount", "values", "states", "actions", "observations"]
-    compulsory_fields = Set(key_fields) # compulsory fields according to the file format
+   
+    organized_preamble = Dict{String, String}() 
+    field_dict = Dict{String, Int64}()
 
     for field in key_fields
-        if !isnothing(get_first_occurence(file_lines, field)) 
-            compulsory_fields = setdiff(compulsory_fields, [field])
+        reg_expr = Regex("\\s*$(field)\\s*:")
+        index = findfirst(startswith.(file_lines, reg_expr))
+
+        if !isnothing(index) 
+            field_dict[field] = index
+            # organized_preamble[field] = get_after_semicolon(file_lines[index]) |> strip
         else
             error("Missing field $(field) in the file")
         end
     end
 
-    dict_scanning = Dict(field => get_first_occurence(file_lines, field) for field in key_fields)
-    sorted_fields = sort(collect(pairs(dict_scanning)), by=x->x[2])
+    sorted_fields = sort(collect(field_dict), by = x -> x[2]) # sorting is necessary to deal with the case in which the parameters are specified in several lines
 
-    organized_preamble = Dict{String, Any}() 
-
-    for (ii, (field, field_values)) in enumerate(sorted_fields)
+    for (counter, (field, index_in_file)) in enumerate(sorted_fields) # necessary to deal with in-between specifications
        
-
-        if ii + 1 <= length(sorted_fields)
-            if sorted_fields[ii+1][2] - field_values == 1
-                temp_match = get_after_semicolon(file_lines[field_values]) 
+        if counter < length(sorted_fields)
+            if sorted_fields[counter+1][2] - index_in_file == 1
+                temp_match = get_after_semicolon(file_lines[index_in_file]) |> strip
             else
-                range_spec = field_values:(sorted_fields[ii+1][2]-1)
-                temp_match = get_between_lines(file_lines[range_spec])
+                range_spec = index_in_file:(sorted_fields[counter+1][2]-1)
+                temp_match = join(file_lines[range_spec], " ") |> get_after_semicolon |> strip 
             end
         else
-            next_indices = get_first_occurence(file_lines, ["T", "O", "R", "start", "start include", "start exclude"])
-            if next_indices - field_values == 1 
-                temp_match = get_after_semicolon(file_lines[field_values])
-            else
-                range_spec = field_values:(next_indices-1)
-                temp_match = get_between_lines(file_lines[range_spec])
+            other_fields = ["T", "O", "R", "start", "start include", "start exclude"]
+            regex_other = ""
+
+            # Construction regex to field other fields
+            for (index, field) in enumerate(other_fields)
+                regex_other *= "\\s*$(field)\\s*:"
+                if index < length(other_fields)
+                    regex_other *= "|"
+                end
             end
+            next_indices = findfirst(startswith.(file_lines, Regex(regex_other)))
+
+            if isnothing(next_indices)
+                error("Error while parsing the preamble. It seems the information about the transitions is missing from the file.")
+            else
+                if next_indices - index_in_file == 1 
+                    temp_match = get_after_semicolon(file_lines[index_in_file]) |> strip
+                else
+                    range_spec = index_in_file:(next_indices-1)
+                    temp_match = join(file_lines[range_spec]) |> get_after_semicolon |> strip
+                end
+            end
+
         end
 
         organized_preamble[field] = temp_match 
     end
 
-
-    return organized_preamble, isempty(compulsory_fields) ? Nothing : error("BLABLA")
+    return Dict{String, String}(kk => mm for (kk,mm) in organized_preamble) 
 end
 
-function processing_preamble(preamble_config::Dict{String, Any})
+function processing_preamble(preamble_config::Dict{String, String})
 
     # checking discount syntax => it must be a float number
     entry = preamble_config["discount"]
     test_entry = tryparse(Float64, entry)
-    discount_param = [(typeof(test_entry) == Float64) && (0 <= test_entry <= 1) ? test_entry : error("BLABLA") ]
+    discount_param = [(typeof(test_entry) == Float64) && (0 <= test_entry <= 1) ? test_entry : error("Discount parameter must be a number between zero and one") ]
 
     # checking value syntax => either "reward" or "cost"
     entry = preamble_config["values"]
     entry = replace(entry, r"[\"+]|[\s+]" => "")
-    values_param = [(isequal(entry,"reward")) || (isequal(entry,"cost") || isequal(entry, "rewards") || isequal(entry, "costs")) ? entry : error("BLABLA")]
+    values_param = [(isequal(entry,"reward")) || (isequal(entry,"cost") || isequal(entry, "rewards") || isequal(entry, "costs")) ? entry : error("Invalid specification for the objective function.")]
 
     # checking actions syntax => either an integer or a collection of names
     actions_param = convert_to_date_structure("actions", preamble_config) 
