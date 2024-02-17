@@ -100,6 +100,8 @@ function read_pomdp(filename::AbstractString)
 
     ss_dic = Dict{String, Int64}(nn => index for (index, nn) in enumerate(string.(states.names_of_states)))
 
+    init_state_info = InitialStateParam()
+
     if !isempty(lines[init_state_lines])
         init_state_info = processing_initial_distribution(states.number_of_states, ss_dic, lines[init_state_lines])
     end
@@ -144,19 +146,14 @@ function read_pomdp(filename::AbstractString)
     dic_states = Dict(string(name) => index for (index, name) in enumerate(states.names_of_states))
     dic_obs = Dict(string(name) => index for (index, name) in enumerate(observations.names_of_observations))
 
-    # println(dic_action)
-    # println(dic_states)
-    # println(dic_obs)
+    transition_prob = processing_transition_probability(states.number_of_states, actions.number_of_actions, dic_states, dic_action, files_transition)
 
-        
-    # transition_prob = processing_transition_probability(states.number_of_states, actions.number_of_actions, dic_states, dic_action, files_transition)
+    obs_prob = processing_observations_probability(states.number_of_states, actions.number_of_actions, observations.number_of_observations, dic_states, dic_action, dic_obs, files_obs)
 
-    # obs_prob = processing_observations_probability(states.number_of_states, actions.number_of_actions, observations.number_of_observations, dic_states, dic_action, dic_obs, files_obs)
-
-    # values_matrix = processing_reward_function(states.number_of_states, actions.number_of_actions, observations.number_of_observations, dic_states, dic_action, dic_obs, files_values)
+    values_matrix = processing_reward_function(states.number_of_states, actions.number_of_actions, observations.number_of_observations, dic_states, dic_action, dic_obs, files_values)
 
 
-    # return discount[1], states, actions, observations, transition_prob, obs_prob, values_matrix, init_state_info
+    return discount[1], states, actions, observations, transition_prob, obs_prob, values_matrix, in
 end
 
 ######################## Main structures ########################
@@ -262,14 +259,14 @@ function remove_comments_and_white_space(file::AbstractVector{String})
         end
     end
 
-    admissible_strings = ["discount", "values", "states", "actions", "observations", "start", "start include", "start exclude", "T", "O", "R"]
+    admissible_strings = ["discount", "values", "states", "actions", "observations", "start", "start include", "start exclude"]
 
     for (index, line) in enumerate(processed_file)
         tt_line = string(line)
         before_semicolon = get_before_semicolon(tt_line) |> strip
         after_semicolon = get_after_semicolon(tt_line) |> strip
 
-
+        # This part of the code is joining in the preamble to facilitate parsing. Otherwise we would have to add code to deal with the case where the parameters are passed in the next line
         if (before_semicolon in admissible_strings) && isempty(after_semicolon)
             processed_file[index] = before_semicolon * ":" * processed_file[index + 1]
             processed_file[index+1] = ""
@@ -308,7 +305,6 @@ function read_ordinal_file(file_name::String; state_size = 20)
     
 end
 
-
 function convert_to_date_structure(field::String, preamble_config::Dict{String,String}) 
 
     entry = preamble_config[field]
@@ -326,37 +322,6 @@ function convert_to_date_structure(field::String, preamble_config::Dict{String,S
 
     return param 
 end
-
-function get_all_occurences(source_file::Vector{String}, starting_line::Int64, key::String)
-
-    removed_text = source_file[starting_line:end]
-    all_occurences = findall(x -> isequal(strip(get_before_semicolon(x)), key), removed_text) 
-    
-    return isempty(all_occurences) ? nothing : all_occurences 
-end
-
-get_all_occurences(source_file::Vector{String}, key::String) = get_all_occurences(source_file, 1, key)
-get_all_occurences(source_file::Vector{String}, multiple_keys::Vector{String}) = reduce(vcat, map(x -> get_all_occurences(source_file, x), multiple_keys))
-
-get_first_occurence(source_file::Vector{String}, starting_line::Int64, key::String) = !isnothing(get_all_occurences(source_file, starting_line, key)) ? minimum(get_all_occurences(source_file, starting_line, key) .-1 .+starting_line) : nothing
-get_first_occurence(source_file::Vector{String}, key::String) = get_first_occurence(source_file, 1, key) 
-
-function get_first_occurence(source_file::Vector{String}, key::Vector{String}) 
-
-    temp_res = map(x->get_first_occurence(source_file, x), key)
-
-    if all(x->isnothing(x), temp_res)
-        return nothing
-    elseif any(x->!isnothing(x), temp_res) 
-        return minimum(filter(x->!isnothing(x), temp_res))
-    else
-        error("BLABLA")
-    end
-
-end
-
-get_last_occurence(source_file::Vector{String}, starting_line::Int64, key::String) = !isnothing(get_all_occurences(source_file, starting_line, key)) ? maximum(get_all_occurences(source_file, starting_line, key) .-1 .+starting_line) : nothing
-get_last_occurence(source_file::Vector{String}, key::String) = get_last_occurence(source_file, 1, key) 
 
 function dealing_with_partial_numbers(ordinal_dictionary::Dict{String, Int64}, initial_state_param::String)
 
@@ -410,11 +375,6 @@ function read_ordinal_file(file_name::String; state_size = 20)
 end
 
 ######### Auxiliary functions -- PREAMBLE ###############
-
-function get_between_lines(file_lines::Vector{String}) 
-    single_line = join(file_lines, " ")
-    return get_after_semicolon(single_line)
-end
 
 function check_preamble_fields(file_lines::Vector{String})
     key_fields = ["discount", "values", "states", "actions", "observations"]
@@ -2145,3 +2105,6 @@ function generate_julia_pomdp_struct(name_of_file::String, name_of_POMDP::String
     end
     
 end
+
+################ RETURNED TYPES BY READ FILES ###############################
+
