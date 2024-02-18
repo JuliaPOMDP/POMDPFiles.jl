@@ -1,13 +1,13 @@
-using Printf, POMDPs
+using Printf, POMDPs, POMDPModelTools
 using  POMDPXFiles 
 
-include("./../src/reader.jl")
+includet("./../src/reader.jl")
 # include("./writer.jl")
 
 # NEED TO PARSE THESE FILES...
 
 # dd, s, a, o, trans_prob, obs_prob, reward_func, init_state = read_pomdp("./../test/sources/mcc-example1.POMDP") 
-read_pomdp("./../test/sources/web-ad.POMDP") 
+aa, dic_ss, dic_aa, dic_oo = read_pomdp("./../test/sources/web-ad.POMDP") 
 
 
 # name_POMDP = "MCCExFirst"

@@ -142,18 +142,20 @@ function read_pomdp(filename::AbstractString)
         end
     end
 
-    dic_action = Dict(string(name) => index for (index, name) in enumerate(actions.names_of_actions))
-    dic_states = Dict(string(name) => index for (index, name) in enumerate(states.names_of_states))
-    dic_obs = Dict(string(name) => index for (index, name) in enumerate(observations.names_of_observations))
+    dic_action = Dict(string(nn) => index for (index, nn) in enumerate(names(actions)))
+    dic_states = Dict(string(nn) => index for (index, nn) in enumerate(names(states)))
+    dic_obs = Dict(string(nn) => index for (index, nn) in enumerate(names(observations)))
 
-    transition_prob = processing_transition_probability(states.number_of_states, actions.number_of_actions, dic_states, dic_action, files_transition)
+    transition_prob = processing_transition_probability(number(states), number(actions), dic_states, dic_action, files_transition)
 
-    obs_prob = processing_observations_probability(states.number_of_states, actions.number_of_actions, observations.number_of_observations, dic_states, dic_action, dic_obs, files_obs)
+    obs_prob = processing_observations_probability(number(states), number(actions), number(observations), dic_states, dic_action, dic_obs, files_obs)
 
-    values_matrix = processing_reward_function(states.number_of_states, actions.number_of_actions, observations.number_of_observations, dic_states, dic_action, dic_obs, files_values)
+    values_matrix = processing_reward_function(number(states), number(actions), number(observations), dic_states, dic_action, dic_obs, files_values)
+
+    pomdp_struc = FilePOMDP(number(states), number(actions), number(observations), init_state_info, discount[1], transition_prob, obs_prob, values_matrix)
 
 
-    return discount[1], states, actions, observations, transition_prob, obs_prob, values_matrix, in
+    return pomdp_struc, dic_states, dic_action, dic_obs  
 end
 
 ######################## Main structures ########################
@@ -172,6 +174,9 @@ end
 
 ActionsParam(names_of_actions::Vector{SubString{String}}) = ActionsParam(names_of_actions, length(names_of_actions))
 
+names(a::ActionsParam) = a.names_of_actions
+number(a::ActionsParam) = a.number_of_actions
+
 struct StateParam 
     names_of_states::Vector{SubString{String}}
     number_of_states::Int
@@ -185,6 +190,9 @@ function StateParam(number_of_states::Int)
 end
 
 StateParam(name_of_states::Vector{SubString{String}}) = StateParam(name_of_states, length(name_of_states))
+
+names(s::StateParam) = s.names_of_states
+number(s::StateParam) = s.number_of_states
 
 struct ObservationParam
     names_of_observations::Vector{SubString{String}}
@@ -200,6 +208,9 @@ end
 
 ObservationParam(names_of_observations::Vector{SubString{String}}) = ObservationParam(names_of_observations, length(names_of_observations))
 
+names(o::ObservationParam) = o.names_of_observations
+number(o::ObservationParam) = o.number_of_observations
+
 struct InitialStateParam{T}
 
     size_of_states::T
@@ -214,9 +225,9 @@ struct InitialStateParam{T}
         if isempty(type_of_distribution) 
             new{T}(size_of_states, "", Set{Int64}([]), Vector{Float64}([]))
         elseif (length(value_of_distribution) != size_of_states) || (collect(support_of_distribution) |> maximum) > size_of_states
-            error("BLABLA")
+            error("Vector of probabilities must have the same size of the state space.")
         elseif !isapprox(sum(value_of_distribution),1, atol=1e-3) || any(x -> (x > 1) || (x < 0),  value_of_distribution) # checking whether value_of_distribution is a valid probability distribution
-            error("BLABLA")
+            error("The last parameter must be a probability measure")
         else
             new{T}(size_of_states, type_of_distribution, support_of_distribution, value_of_distribution)
         end
@@ -225,6 +236,10 @@ end
 
 InitialStateParam() = InitialStateParam{Int64}(0, "", Set{Int64}([]), Vector{Float64}([])) 
 InitialStateParam(size_of_states::Int64) = InitialStateParam{Int64}(size_of_states, "", Set{Int64}([]), Vector{Float64}([])) 
+
+number(init::InitialStateParam) = init.size_of_states
+support(init::InitialStateParam) = init.support_of_distribution
+prob(init::InitialStateParam) = init.value_of_distribution
 
 ############# Setting-up a test dataset ####################
 
@@ -2108,3 +2123,94 @@ end
 
 ################ RETURNED TYPES BY READ FILES ###############################
 
+# Integer  data structure
+
+struct FilePOMDP{Int64} <: POMDP{Int64, Int64, Int64} 
+    number_of_states::Int64
+    number_of_actions::Int64
+    number_of_observations::Int64
+
+    support_of_distribution::Set{Int64}
+    value_of_distribution::Vector{Float64}
+
+    discount::Float64
+
+    T::TransitionProb
+    O::ObservationProb
+    R::RewardLookUp
+end
+
+FilePOMDP(s::Int64, a::Int64, o::Int64, initial_state::InitialStateParam, discount::Float64, T::TransitionProb, O::ObservationProb, R::RewardLookUp)= FilePOMDP(s, a, o, support(initial_state), prob(initial_state), discount, T, O, R)  
+
+states(m::FilePOMDP{Int64}) = 1:m.number_of_states
+stateindex(m::FilePOMDP{Int64}, i::Int64) = (i <= m.number_of_states) ? i : error("Querying states outside the allowable range.")
+
+actions(m::FilePOMDP{Int64}) = 1:m.number_of_actions
+actionindex(m::FilePOMDP{Int64}, i::Int64) = (i <= m.number_of_actions) ? i : error("Querying input outside the allowable range.")
+
+observations(m::FilePOMDP{Int64}) = 1:m.number_of_observations
+obsindex(m::FilePOMDP{Int64}, i::Int64) = (i <= m.number_of_observations) ? i : error("Querying observations outside the allowable range.")
+
+function initialstate(m::FilePOMDP{Int64})
+
+    if !isempty(m.value_of_distribution)
+        return SparseCat(states(m), m.value_of_distribution)
+    else
+        @warn "No available initial condition."
+        return false
+    end
+end
+
+function transition(m::FilePOMDP{Int64}, s::Int64, a::Int64)
+
+    prob_val = [m.T[(s,a,sp)] for sp in states(m)]
+
+    return SparseCat(states(m), prob_val)
+end
+
+transition(m::FilePOMDP{Int64}, s::Int64, a::Int64, sp::Int64) = m.T[(s,a,sp)]
+
+function observation(m::FilePOMDP{Int64}, s::Int64, a::Int64)
+
+    prob_obs = [m.O[(s, a, obs)] for obs in observations(m)]
+
+    return SparseCat(observations(m), prob_obs)
+end
+
+observation(m::FilePOMDP{Int64}, s::Int64, a::Int64, obs::Int64) = m.O[(s,a,obs)]
+
+reward(m::FilePOMDP{Int64}, s::Int64, a::Int64, sp::Int64, obs::Int64) = m.R[(s,a,sp,obs)]
+
+reward(m::FilePOMDP{Int64}, s::Int64, a::Int64, sp::Int64) = m.R[(s,a,sp,1)]
+
+reward(m::FilePOMDP{Int64}, s::Int64, a::Int64) = m.R[(s,a,1,1)]
+
+discount(m::FilePOMDP{Int64}) = m.discount
+
+# Data structure with names
+
+struct SFilePOMDP{String} <: POMDP{Int64, Int64, Int64}
+    dic_states::Dict{String, Int64}
+    dic_actions::Dict{String, Int64}
+    dic_obs::Dict{String, Int64}
+
+    pomdp::FilePOMDP{Int64}
+
+    function SFilePOMDP(dic_ss::Dict{String, Int64}, dic_aa::Dict{String, Int64}, dic_oo::Dict{String, Int64}, pomdp::FilePOMDP{Int64})
+
+        @assert length(dic_ss) == pomdp.number_of_states
+        @assert length(dic_aa) == pomdp.number_of_actions
+        @assert length(dic_oo) == pomdp.number_of_observations
+        
+        new{String}(dic_ss, dic_aa, dic_oo, pomdp)
+
+    end
+end
+
+states(m::SFilePOMDP{String}) = states(m.pomdp)
+stateindex(m::SFilePOMDP{String}, key::Int64) = stateindex(m.pomdp, key)
+
+function stateindex(m::SFilePOMDP{String}, key::String) 
+    i = m.dic_states[key]
+    return stateindex(m, i)
+end
