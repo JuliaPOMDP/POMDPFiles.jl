@@ -1,22 +1,19 @@
-using Printf, POMDPs, POMDPModelTools
-using  POMDPXFiles 
+using POMDPFiles, POMDPModels, OrderedCollections
 
-includet("./../src/reader.jl")
-# include("./writer.jl")
+using POMDPs
 
-# NEED TO PARSE THESE FILES...
+regex_filename = r"^(.*)\.[Pp][Oo][Mm][Dd][Pp]$"
+file_path = "./../test/sources/bridge-repair.POMDP"
+    
+ff_name = match(regex_filename, file_path)
 
-# dd, s, a, o, trans_prob, obs_prob, reward_func, init_state = read_pomdp("./../test/sources/mcc-example1.POMDP") 
-aa, dic_ss, dic_aa, dic_oo = read_pomdp("./../test/sources/web-ad.POMDP") 
+target_file = ff_name.captures[1] * ".txt"
+tmp = splitdir(target_file)
+target_file = tmp[1] * "/txt-files/" * tmp[2]
 
+pomdp_read=  read_pomdp(file_path)
 
-# name_POMDP = "MCCExFirst"
-
-# generate_julia_pomdp_struct("./../pomdp-files/mmc-example1.jl", name_POMDP)
-
-# include("../pomdp-files/mmc-example1.jl")
-
-# aa = MCCExFirst(s, a, o, init_state, dd, trans_prob, obs_prob, reward_func)
+numericprint(target_file, pomdp_read)
 
 print("POMDP read! \n\n\n")
 

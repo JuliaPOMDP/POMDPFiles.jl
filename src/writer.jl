@@ -1,3 +1,4 @@
+
 """
 Writes out the alpha vectors in the `.alpha` file format
 """
