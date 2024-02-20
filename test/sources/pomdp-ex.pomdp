@@ -1,0 +1,95 @@
+discount: 
+0.1
+values: 
+reward
+states: warm cold not-to-cold very-very-cold almost-cold ow-this-is-very-cold
+actions: north south east west 
+observations: 
+warning more-warning 
+
+
+start: second-state fourth-state fifth-state third-state 
+start: 
+
+"uniform"
+
+start: 2 
+start: 
+[0.1, 0.7, 0., 0., 0., 0.2]
+start: 2 4 6 
+start include: 
+
+first-state
+start include: fifth-state
+start exclude: 1
+start exclude: 5 4 6
+start include: 
+
+
+1 2 3 4 5
+start exclude: 
+
+1 6 3
+
+T: east : warm : almost-cold 0.5  
+T: west : cold : * 9.7
+T: west : almost-cold
+0.1 0.1 0.1 0.1 0 0.6
+
+T: west : cold
+uniform
+
+T: south 
+0.1 0.1 0.1 0.1 0 0.6
+0.1 0.1 0.1 0.1 0 0.6
+0.1 0.1 0.1 0.1 0 0.6
+0.1 0.1 0.1 0.1 0 0.6
+8 0.1 0.1 0.1 0 0.6
+0.1 0.1 10 0.1 0 0.6
+
+T: east
+     uniform
+
+T: north
+ 		identity
+
+T: * : *
+0.1 0.2 0.3 0.4 0 0 
+
+T: * : * 0.1 0.2 0.3 0.4 0 0 
+
+T: * : warm 0.1 0.3 0.2 0.4 0 0 
+
+T: north : * 0.2 0.1 0.3 0.4 0 0 
+
+T: *
+0.1 0.1 0.1 0.1 0 0.6
+0.1 0.1 0.1 0.1 0 0.6
+0.1 0.1 0.1 0.1 0 0.6
+0.1 0.1 0.1 0.1 0 0.6
+8 0.1 0.1 0.1 0 0.6
+0.1 0.1 10 0.1 0 0.6
+
+
+O: north : warm : warning 0.5 
+
+R: north : warm : cold :more-warning 6 
+R: * : cold : almost-cold: warning 7
+R: east : * : almost-cold: warning 7
+R: south : cold : *: warning 7
+R: south : cold : almost-cold: * 7
+
+R: * : *: almost-cold: more-warning 8
+R: * : warm : *: more-warning 8
+R: * : warm : almost-cold: * 8
+R: east : *: *: more-warning 8
+R: east : *: warm: * 8
+R: east : cold: *: * 8
+R: west : * : * : * 10
+R: * : cold : * : * 10
+R: * :*: cold : * 10
+R: * :*: * : more-warning 10
+R: * :*: * : * 0 
+
+
+
