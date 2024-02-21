@@ -145,7 +145,7 @@ function read_pomdp(filename::AbstractString)
     dic_states = Dict(string(nn) => index for (index, nn) in enumerate(names(states)))
     dic_obs = Dict(string(nn) => index for (index, nn) in enumerate(names(observations)))
 
-    transition_prob = processing_transition_probability(number(states), number(actions), dic_states, dic_action, files_transition)
+    transition_prob = processing_transition_probability(number(states), number(actions), dic_states, dic_action, dic_states, files_transition)
 
     obs_prob = processing_observations_probability(number(states), number(actions), number(observations), dic_states, dic_action, dic_obs, files_obs)
 
@@ -157,11 +157,7 @@ function read_pomdp(filename::AbstractString)
 
     return SFilePOMDP(dic_states, dic_action, dic_obs, pomdp_struc)
 
-    # return pomdp_struc, dic_states, dic_action, dic_obs  
 end
-
-######################## Main structures ########################
-
 
 ############# Setting-up a test dataset ####################
 
@@ -254,8 +250,6 @@ function convert_to_date_structure(field::String, preamble_config::Dict{String,S
     else
         param = split(entry)
     end
-
-    # println(param)
 
     return param 
 end
@@ -494,7 +488,6 @@ function processing_initial_distribution_start_include(state_initial_param::Init
         error("Unable to parse the start include line.")
     end
 
-    # jk
     return
 
 end
@@ -559,7 +552,7 @@ function processing_initial_distribution(number_of_states::Int64, name_of_states
 
             initial_state_param = processing_initial_distribution_start_exclude(initial_state_param, param_init, name_of_states)
         else
-            error("BLABLA")
+            error("Unable to parse the initial condition.")
         end
     end
 
@@ -567,116 +560,9 @@ function processing_initial_distribution(number_of_states::Int64, name_of_states
 
 end
 
-################ Types for saving memory while parsing probability distributions ############
-# abstract type TransitionsLookUp end;
-# abstract type RewardLookUp end;
-
-# struct TransitionProb{T}  <: TransitionsLookUp 
-#     trans_parsed::OrderedDict{NTuple{3, T}, Float64}
-#     number_of_states::Int64
-#     number_of_actions::Int64
-# end
-
-# struct ObservationProb{T}  <: TransitionsLookUp 
-#     obs_parsed::OrderedDict{NTuple{3, T}, Float64}
-#     number_of_states::Int64
-#     number_of_actions::Int64
-#     number_of_observations::Int64
-# end
-
-# struct RewardValue{T} <: RewardLookUp
-#     reward_parsed::OrderedDict{NTuple{4, T}, Float64}
-#     number_of_states::Int64
-#     number_of_actions::Int64
-#     number_of_observations::Int64
-# end
-
-# max_num_states(trans_prob::TransitionProb) = [trans_prob.number_of_states, trans_prob.number_of_actions, trans_prob.number_of_states]
-# max_num_states(obs_prob::ObservationProb) = [obs_prob.number_of_states, obs_prob.number_of_actions, obs_prob.number_of_observations]
-# max_num_states(reward::RewardLookUp) = [reward.number_of_states, reward.number_of_actions, reward.number_of_states, reward.number_of_observations]
-
-# dict(trans_prob::TransitionProb) = trans_prob.trans_parsed
-# dict(obs_prob::ObservationProb) = obs_prob.obs_parsed
-
-# dict(reward::RewardLookUp) = reward.reward_parsed
-
-# function Base.getindex(obj::TransitionsLookUp, key::NTuple{3, Int})
-#     keys_obj = dict(obj) |> keys |> collect
-#     n = length(key)
-
-#     max_num = max_num_states(obj) 
-
-#     if !isequal(n,3)
-#         error("The key argument must be an integer tuple of size equal to 3")
-#     end
-
-#     if any(x -> x <= 0, key) || any(key[i] > max_num[i] for i in 1:n)
-#         error("Indices must be integers larger than zero and less than or equal to the entries of the vector $(max_num)")
-#     end
-
-#     index = 1
-#     status = false
-
-#     possible_keys = [collect(key), [key[1], 0, 0], [key[1], 0, key[3]], [key[1], key[2], 0], [0, key[2], 0], [0, key[2], key[3]], [0, 0, key[3]], [0,0,0]] # all possible keys on the reduced dictionary
-    
-#     for kk in possible_keys
-#         temp_index = findfirst(x->isequal(x,Tuple(kk)), keys_obj)
-
-#         if !isnothing(temp_index)
-#             status = true
-#             if temp_index > index
-#                 index = temp_index
-#             end
-#         end
-#     end
-
-#     if !status
-#        return 0 
-#     end
-
-#     return dict(obj)[keys_obj[index]]
-# end
-
-# function Base.getindex(reward::RewardLookUp, key::NTuple{4, Int})
-#     keys_obj = dict(reward) |> keys |> collect
-#     n = length(key)
-
-#     max_num = max_num_states(reward) 
-
-#     if !isequal(n,4)
-#         error("The key argument must be an integer tuple of size equal to 4")
-#     end
-
-#     if any(x -> x <= 0, key) || any(key[i] > max_num[i] for i in 1:n)
-#         error("Indices must be integers larger than zero and less than or equal to the entries of the vector $(max_num)")
-#     end
-
-#     index = 1
-#     status = false
-
-#     possible_keys = [collect(key), [key[1], 0, 0, 0],  [0, key[2], 0, 0], [0, 0, key[3], 0], [0, 0, 0, key[4]],[key[1], key[2], 0, 0], [key[1], 0, key[3], 0], [key[1], 0, 0, key[4]], [0, key[2], key[3], 0], [0, key[2], 0, key[4]], [0, 0, key[3], key[4]], [key[1], key[2], key[3], 0], [key[1], key[2], 0, key[4]], [key[1], 0, key[3], key[4]], [0, key[2], key[3], key[4]], [0, 0, 0, 0]] # all possible keys
-
-#     for kk in possible_keys
-#         temp_index = findfirst(x->isequal(x,Tuple(kk)), keys_obj)
-
-#         if !isnothing(temp_index)
-#             status = true
-#             if temp_index > index
-#                 index = temp_index
-#             end
-#         end
-#     end
-
-#     if !status
-#        return 0 
-#     end
-
-#     return dict(reward)[keys_obj[index]]
-# end
-
 ################ Auxiliary functions -- TRANSITION PROBABILITY ################## 
 
-function turn_into_number!(parsed_line::Vector{String}, name_of_states::Dict{String, Int64}, name_of_actions::Dict{String, Int64}, indices::Vector{Int64})
+function turn_into_number!(parsed_line::Vector{String}, name_of_states::Dict{String, Int64}, name_of_actions::Dict{String, Int64}, name_of_states_obs::Dict{String, Int64}, indices::Vector{Int64})
 
     # the index parameter serves to select whether or not the entry is allowed to be substituted. This is essential to deal with the wild card
 
@@ -684,9 +570,11 @@ function turn_into_number!(parsed_line::Vector{String}, name_of_states::Dict{Str
         if 3 in indices
             parsed_line[3] = string(name_of_states[parsed_line[3]])  
         end
+    end
 
+    if !isempty(name_of_states_obs)
         if 4 in indices
-            parsed_line[4] = string(name_of_states[parsed_line[4]]) 
+            parsed_line[4] = string(name_of_states_obs[parsed_line[4]]) 
         end
     end
 
@@ -697,126 +585,218 @@ function turn_into_number!(parsed_line::Vector{String}, name_of_states::Dict{Str
     end
 end
 
-function get_transition_prob_number_same_line!(current_state::Int64, input::Int64, prob::Vector{String}, trans_prob_index::Vector{Tuple{Int64, Int64, Int64}}, trans_prob_values::Vector{Float64}, number_of_states)
+abstract type LineParsing end
 
-    if all(map(x -> !isnothing(tryparse(Float64,x)), prob)) && (length(prob) == number_of_states)
-        prob = map(x->parse(Float64, x), prob)
-        if testing_if_probability(prob)
-            for (index, next_state) in enumerate(1:number_of_states)
-                push!(trans_prob_index, (current_state, input, next_state))
-                push!(trans_prob_values, prob[index])
-            end
-        else
-            @warn "This vector is not a probability measure"
-            println(prob, "Sum:", sum(prob))
-        end
-    elseif isequal(prob, "uniform")
-        prob_val = 1/number_of_states
-        for next_state in 1:number_of_states
-            push!(trans_prob_index, (current_state, input, next_state))
-            push!(trans_prob_values, prob_val)
-        end
+struct SizeEqualFour <: LineParsing 
+    parsed_line::Vector{String}
+end
+
+line(ℓ::SizeEqualFour) = ℓ.parsed_line
+
+struct SizeEqualThree <: LineParsing 
+    parsed_line::Vector{String}
+end
+
+line(ℓ::SizeEqualThree) = ℓ.parsed_line
+
+struct SizeEqualTwo <: LineParsing 
+    parsed_line::Vector{String}
+end
+
+line(ℓ::SizeEqualTwo) = ℓ.parsed_line
+
+function update_prob!(indices::NTuple{3, Int64}, prob::Float64, prob_indices::Vector{NTuple{3, Int64}}, prob_values::Vector{Float64})
+     
+    push!(prob_indices, indices)
+    push!(prob_values, prob)
+end
+
+function update_prob!(indices::NTuple{2, Int64}, prob::Union{Vector{Float64}, String}, prob_indices::Vector{NTuple{3, Int64}}, prob_values::Vector{Float64})
+    n = length(prob)
+    
+    if isequal(prob, "uniform") 
+        prob_val = 1/n*ones(n) 
     elseif isequal(prob, "identity")
-        push!(trans_prob_index, (current_state, input, current_state))
-        push!(trans_prob_values, 1)
+        prob_val = zeros(n)
+        prob_val[indices[1]] = 1
     else
-        error("I am not sure how to parse this line. Please check the file.")
+        prob_val = prob
+    end
+
+    for (next, value_prob) in enumerate(prob_val)
+        ii = (indices..., next)
+        push!(prob_indices, ii)
+        push!(prob_values, value_prob)
     end
 end
 
-function get_transition_prob_next_line!(current_state::Int64, input::Int64, trans_prob_index::Vector{Tuple{Int64, Int64, Int64}}, trans_prob_values::Vector{Float64}, index::Int64, number_of_states::Int64, files_trans::Vector{String})
+function update_prob!(input::Tuple{Int64}, prob::Float64, prob_indices::Vector{NTuple{3, Int64}}, prob_values::Vector{Float64}, number_of_states::Int64)
 
-    next_line =  string.(split(files_trans[index + 1])) 
-
-    if all(x -> !isnothing(tryparse(Float64, x)), next_line)
-        prob = map(x -> parse(Float64, x), next_line)
-
-        if testing_if_probability(prob) && (length(prob) == number_of_states)
-
-            for (next_state, value_prob) in enumerate(prob)
-                push!(trans_prob_index, (current_state, input, next_state))
-                push!(trans_prob_values, value_prob)
-            end
-        end
-    elseif isequal(next_line[1], "uniform")
-
+    for current_state in 1:number_of_states
         for next_state in 1:number_of_states
-            push!(trans_prob_index, (current_state, input, next_state))
-            push!(trans_prob_values, 1/number_of_states)
+            ii = (current_state, input..., next_state)
+            push!(prob_indices, ii)
+            push!(prob_values, prob)
         end
-    elseif isequal(next_line[1], "identity")
+    end
+end
+    
+function update_prob!(input::Tuple{Int64}, prob::Int64, prob_indices::Vector{NTuple{3, Int64}}, prob_values::Vector{Float64}, number_of_states::Int64)
 
-            push!(trans_prob_index, (current_state, input, current_state))
-            push!(trans_prob_values, 1)
-    else
-        error("I am not sure how to parse this line. Please check the file.")
+    for current_state in 1:number_of_states
+        ii = (current_state, input..., current_state)
+        push!(prob_indices, ii)
+        push!(prob_values, prob)
     end
 end
 
-function get_transition_prob_matrix!(trans_prob_index::Vector{NTuple{3, Int64}}, trans_prob_values::Vector{Float64}, input::Int64, number_of_states::Int64, index::Int64, trans_lines::Vector{String})
+function update_prob!(input::Tuple{Int64}, prob::Matrix{Float64}, prob_indices::Vector{NTuple{3, Int64}}, prob_values::Vector{Float64}, number_of_states::Int64)
 
-    if (index + 1) > length(trans_lines)
-        error("It seems the file does not contain information about the transition probability. Unable to parse the file.")
+    for current_state in 1:number_of_states
+        for next_state in 1:number_of_states
+            ii = (current_state, input..., next_state)
+            push!(prob_indices, ii)
+            push!(prob_values, prob[current_state, next_state])
+        end
     end
+end
 
-    next_line = trans_lines[index + 1] |> strip
+function process_line!(ℓ::SizeEqualFour, prob::Float64, name_of_states::Dict{String, Int64}, name_of_actions::Dict{String, Int64}, name_of_states_obs::Dict{String, Int64}, number_wild_cards::Int64, prob_indices::Vector{NTuple{3, Int64}}, prob_values::Vector{Float64})
+    
+    parsed_line = line(ℓ)
 
-    if isequal(next_line, "uniform")
-        prob_val = 1/number_of_states
+    if number_wild_cards == 0 
+        turn_into_number!(parsed_line, name_of_states, name_of_actions, name_of_states_obs, [2, 3, 4]) # I may have to chande this function. Last parameter may not be needed
+        
+        input = parse(Int64, parsed_line[2]) 
+        current_state = parse(Int64, parsed_line[3])
+        next = parse(Int64, parsed_line[4])
 
-        for current_state in 1:number_of_states
-            for next_state in 1:number_of_states 
-                push!(trans_prob_index, (current_state, input, next_state))
-                push!(trans_prob_values, prob_val)
-            end
-        end
-    elseif isequal(next_line, "identity")
-        prob_val = 1
+    elseif number_wild_cards == 1
+        if isequal(parsed_line[2], "*")
+            turn_into_number!(parsed_line, name_of_states, name_of_actions, name_of_states_obs, [3,4]) 
 
-        for current_state in 1:number_of_states
-            push!(trans_prob_index, (current_state, input, current_state))
-            push!(trans_prob_values, prob_val)
-        end
-    else
-        if index + number_of_states > length(trans_lines)
-            error("Unable to parse the file. Please check the dimension of the transition matrix.")
-        end
+            current_state = parse(Int64, parsed_line[3])
+            next = parse(Int64, parsed_line[4])
+            input = 0
 
-        matrix_lines = trans_lines[index + 1:index + number_of_states]
-        # println(matrix_lines)
+        elseif isequal(parsed_line[3], "*")
+            turn_into_number!(parsed_line, name_of_states, name_of_actions, name_of_states_obs, [2,4]) 
 
-        if all(x -> !isnothing(tryparse.(Float64, split(x))), matrix_lines)
+            current_state = 0
+            input = parse(Int64, parsed_line[2])
+            next = parse(Int64, parsed_line[4])
+        
+        elseif isequal(parsed_line[4], "*")
+            turn_into_number!(parsed_line, name_of_states, name_of_actions, name_of_states_obs, [2,3]) 
 
-            matrix_trans = hcat([parse.(Float64, split(row)) for row in matrix_lines]...)' 
-            # println(matrix_trans)
-
-            for current_state in 1:number_of_states
-                if testing_if_probability(matrix_trans[current_state,:])
-                    for next_state in 1:number_of_states 
-                        push!(trans_prob_index, (current_state, input, next_state))
-                        push!(trans_prob_values, matrix_trans[current_state, next_state])
-                    end
-                else
-                    @warn "One or more matrix's row is not a probability vector\n\n"
-                    println(sum(matrix_trans[current_state,:]))
-                    println(matrix_trans[current_state,:])
-                end
-            end
+            input = parse(Int64, parsed_line[2])
+            current_state = parse(Int64, parsed_line[3])
+            next = 0
         else
-            error("Please check the file. Unable to parse the transition probability associated with action $(input)")
+            error("Unable to parse the position of the wild card")
         end
+    elseif number_wild_cards == 2 # I HAVE CHECKED THIS FUNCTIONS UP TO THIS POINT
+
+        if isequal(parsed_line[4], "*")
+            if isequal(parsed_line[3], "*")
+                turn_into_number!(parsed_line, name_of_states, name_of_actions, name_of_states_obs, [2]) 
+
+                input = parse(Int64, parsed_line[2])
+                current_state = 0
+                next = 0
+            elseif isequal(parsed_line[2], "*")
+                turn_into_number!(parsed_line, name_of_states, name_of_actions, name_of_states_obs, [3]) 
+
+                current_state = parse(Int64, parsed_line[3])
+                input = 0
+                next = 0
+            else
+                error("Unable to parse this line. Please check the file.")
+            end
+        elseif isequal(parsed_line[2], "*") && isequal(parsed_line[3], "*") 
+            turn_into_number!(parsed_line, name_of_states, name_of_actions, name_of_states_obs, [4]) 
+
+            next = parse(Int64, parsed_line[4])
+            input = 0
+            current_state = 0
+        else
+            error("Unable to parse this line. Please check the file.")
+        end
+    elseif number_wild_cards == 3
+        input = 0                        
+        current_state = 0
+        next = 0 
+    else
+        error("Unable to parse this line. Please check the file.")
     end
+    
+    # ℓ = NextLine((current_state, input, next), prob)
+    update_prob!((current_state, input, next), prob, prob_indices, prob_values)
 end
 
+function process_line!(ℓ::SizeEqualThree, prob::Vector{Float64}, name_of_states::Dict{String, Int64}, name_of_actions::Dict{String, Int64}, name_of_states_obs::Dict{String, Int64}, number_wild_cards::Int64, prob_indices::Vector{NTuple{3, Int64}}, prob_values::Vector{Float64}) 
 
-function processing_transition_probability(number_of_states::Int64, number_of_actions::Int64, name_of_states::Dict{String,Int64}, name_of_actions::Dict{String,Int64}, trans_prob_occurences::Vector{String})
+    parsed_line = line(ℓ)
+
+    if number_wild_cards == 0 
+        turn_into_number!(parsed_line, name_of_states, name_of_actions, name_of_states_obs, [2,3]) # I may have to chande this function. Last parameter may not be needed
+
+        input = parse(Int64, parsed_line[2]) 
+        current_state = parse(Int64, parsed_line[3])
+
+    elseif number_wild_cards == 1
+        
+        if isequal(parsed_line[2], "*")
+            turn_into_number!(parsed_line, name_of_states, name_of_actions, name_of_states_obs, [3])
+
+            current_state = parse(Int64, parsed_line[3])
+            input = 0
+
+        elseif isequal(parsed_line[3], "*")
+            turn_into_number!(parsed_line, name_of_states, name_of_actions, name_of_states_obs, [2])
+
+            input = parse(Int64, parsed_line[2]) 
+            current_state = 0
+
+        else
+            error("Unable to parse this line")
+        end
+    elseif number_wild_cards == 2
+        current_state = 0
+        input = 0
+
+        # get_transition_prob_next_line!(current_state, input, trans_prob_index, trans_prob_values, index, number_of_states, trans_prob_occurences)
+    else
+        error("Unable to parse this line")
+    end
+
+    update_prob!((current_state, input), prob, prob_indices, prob_values)
+end
+
+function process_line!(ℓ::SizeEqualTwo, prob::Union{Float64, Int64, Matrix{Float64, Float64}}, name_of_states::Dict{String, Int64}, name_of_actions::Dict{String, Int64}, name_of_states_obs::Dict{String, Int64}, prob_indices::Vector{NTuple{3, Int64}}, prob_values::Vector{Float64}) 
+
+    parsed_line = line(ℓ)
+
+    if isequal(parsed_line[2], "*")
+        input = 0
+    elseif parsed_line[2] in keys(name_of_actions)
+        turn_into_number!(parsed_line, name_of_states, name_of_actions, name_of_states_obs, [2])
+
+        input = parse(Int64, parsed_line[2])
+    end
+
+    update_prob!((input,), prob, prob_indices, prob_values)
+end
+
+function processing_transition_probability(number_of_states::Int64, number_of_actions::Int64, name_of_states::Dict{String,Int64}, name_of_actions::Dict{String,Int64}, name_of_states_obs::Dict{String, Int64}, file::Vector{String})
 
 
-    trans_prob_index = Vector{Tuple{Int64, Int64, Int64}}()
-    trans_prob_values = Vector{Float64}()
+    prob_indices = Vector{Tuple{Int64, Int64, Int64}}()
+    prob_values = Vector{Float64}()
 
 
-    for (index, lines) in enumerate(trans_prob_occurences)
+    for (index, lines) in enumerate(file)
 
         if isequal(get_before_semicolon(lines) |> strip, "T")
             parsed_line = string.(strip.(split(lines, ':')))
@@ -836,152 +816,24 @@ function processing_transition_probability(number_of_states::Int64, number_of_ac
 
                 if length(checking_fourth_param) == 1 # parameter passed in the next line
 
-                    if number_wild_cards == 0 
-                        turn_into_number!(parsed_line, name_of_states, name_of_actions, [2, 3, 4]) # I may have to chande this function. Last parameter may not be needed
-                        
-                        input = parse(Int64, parsed_line[2]) 
-                        current_state = parse(Int64, parsed_line[3])
-                        next_state = parse(Int64, parsed_line[4])
-
-                        if !isnothing(tryparse(Float64, trans_prob_occurences[index + 1])) 
-                            prob = parse(Float64, trans_prob_occurences[index + 1])
-
-                            push!(trans_prob_index, (current_state, input, next_state))
-                            push!(trans_prob_values, prob)
-                        else
-                            error("Error while parsing this line. Could not read the transition probability")
-                        end
-                    elseif number_wild_cards == 1
-                         if isequal(parsed_line[2], "*")
-                            turn_into_number!(parsed_line, name_of_states, name_of_actions, [3,4]) 
-
-                            current_state = parse(Int64, parsed_line[3])
-                            next_state = parse(Int64, parsed_line[4])
-                            input = 0
-
-                            if !isnothing(tryparse(Float64, trans_prob_occurences[index + 1])) 
-                                prob = parse(Float64, trans_prob_occurences[index + 1])
-
-                                push!(trans_prob_index, (current_state, input, next_state))
-                                push!(trans_prob_values, prob)
-                            else
-                                error("Error while parsing this line. Could not read the transition probability")
-                            end
-
-                        elseif isequal(parsed_line[3], "*")
-                            turn_into_number!(parsed_line, name_of_states, name_of_actions, [2,4]) 
-
-                            current_state = 0
-                            input = parse(Int64, parsed_line[2])
-                            next_state = parse(Int64, parsed_line[4])
-                            
-                            if !isnothing(tryparse(Float64, trans_prob_occurences[index + 1])) 
-                                prob = parse(Float64, trans_prob_occurences[index + 1])
-
-                                push!(trans_prob_index, (current_state, input, next_state))
-                                push!(trans_prob_values, prob)
-                            else
-                                error("Error while parsing this line. Could not read the transition probability")
-                            end
-
-                        elseif isequal(parsed_line[4], "*")
-                            turn_into_number!(parsed_line, name_of_states, name_of_actions, [2,3]) 
-
-                            input = parse(Int64, parsed_line[2])
-                            current_state = parse(Int64, parsed_line[3])
-                            next_state = 0
-                            
-                            if !isnothing(tryparse(Float64, trans_prob_occurences[index + 1])) 
-                                prob = parse(Float64, trans_prob_occurences[index + 1])
-
-                                push!(trans_prob_index, (current_state, input, next_state))
-                                push!(trans_prob_values, prob)
-                            else
-                                error("Error while parsing this line. Could not read the transition probability")
-                            end
-
-                        else
-                            error("More wild cards than expected. Check this line.")
-                        end
+                    if !isnothing(tryparse(Float64, file[index + 1]))
+                        prob = parse(Float64, file[index + 1])
                     else
-                        println("TBI: transition probability")
+                        error("Unable to parse line $index")
                     end
+
+                    process_line!(SizeEqualFour(parsed_line), prob, name_of_states, name_of_actions, name_of_states_obs, number_wild_cards, prob_indices, prob_values)
                 
                 elseif length(checking_fourth_param) == 2 # parameter in the same line
-
-                    if number_wild_cards == 0 
-                        turn_into_number!(parsed_line, name_of_states, name_of_actions, [2,3,4]) # substituting string per integers on the appropriate line 
-
-                        current_state = parse(Int64, parsed_line[3])
-                        next_state = parse(Int64, parsed_line[4])
-                        input = parse(Int64, parsed_line[2])
-                        
-                        if length(parsed_line) == 5
+                    if length(parsed_line) == 5
                             prob = parse(Float64, parsed_line[5])
-                        else
-                            @warn "I am assing this probability to one"
-                            prob = 1.
-                        end
-
-                        push!(trans_prob_index, (current_state, input, next_state))
-                        push!(trans_prob_values, prob)
-
-                    elseif number_wild_cards == 1
-                        pos_wild = findfirst(x -> isequal(x, "*"), parsed_line)
-
-                        if pos_wild == 2 # Wild card in the action place
-                            turn_into_number!(parsed_line, name_of_states, name_of_actions, [3,4])
-
-                            current_state = parse(Int64, parsed_line[3])
-                            next_state = parse(Int64, parsed_line[4])
-                            input = 0
-                            
-                            if length(parsed_line) == 5
-                                prob = parse(Float64, parsed_line[5])
-                            else
-                                @warn "I am assinging this probability to one"
-                                prob = 1.
-                            end
-
-                            push!(trans_prob_index, (current_state, input, next_state))
-                            push!(trans_prob_values, prob)
-
-                        elseif pos_wild == 3 # Wild card in the state place
-                            turn_into_number!(parsed_line, name_of_states, name_of_actions, [2,4])
-
-                            input = parse(Int64, parsed_line[2])
-                            next_state = parse(Int64, parsed_line[4])
-                            current_state = 0
-
-                            if length(parsed_line) == 5
-                                prob = parse(Float64, parsed_line[5])
-                            else
-                                prob = 1
-                            end
-                            
-                            push!(trans_prob_index, (current_state, input, next_state))
-                            push!(trans_prob_values, prob)
-
-                        elseif pos_wild == 4 # Wild card in the next state place
-                            turn_into_number!(parsed_line, name_of_states, name_of_actions, [2,3])
-
-                            input = parse(Int64, parsed_line[2])
-                            current_state = parse(Int64, parsed_line[3])
-                            next_state = 0
-
-                            @warn "I am modifying the value of next states to $(1/number_of_states)"
-                            
-                            prob = 1/number_of_states
-
-                            push!(trans_prob_index, (current_state, input, next_state))
-                            push!(trans_prob_values, prob)
-                        else
-                            error("There must be an error in this line")
-                        end
                     else
-                        error("You cannot have two wild cards in the same row when defining transition probabilities")
+                        error("Unable to parse line $index")
+                        # @warn "I am assing this probability to one"
+                        # prob = 1.
                     end
-    
+
+                    process_line!(SizeEqualFour(parsed_line), prob, name_of_states, name_of_actions, name_of_states_obs, number_wild_cards, prob_indices, prob_values)
                 else
                     error("TBI: transition probability")
                 end
@@ -990,110 +842,60 @@ function processing_transition_probability(number_of_states::Int64, number_of_ac
                 # T: <action> : <start-state>
 
                 checking_third_param = split(parsed_line[3], " ", limit=2)
+                number_wild_cards = count(x -> isequal(x, "*"), parsed_line)
 
                 if length(checking_third_param) == 1 # The transition probability will be on the next line
-                    number_wild_cards = count(x -> isequal(x, "*"), parsed_line)
-                    
-                    if number_wild_cards == 0 
-                        turn_into_number!(parsed_line, name_of_states, name_of_actions, [2,3]) # I may have to chande this function. Last parameter may not be needed
-            
-                        input = parse(Int64, parsed_line[2]) 
-                        current_state = parse(Int64, parsed_line[3])
 
-                        get_transition_prob_next_line!(current_state, input, trans_prob_index, trans_prob_values, index, number_of_states, trans_prob_occurences)
-                    elseif number_wild_cards == 1
-                        
-                        if isequal(parsed_line[2], "*")
-                            turn_into_number!(parsed_line, name_of_states, name_of_actions, [3])
+                    next_line =  string.(split(files_trans[index + 1])) 
 
-                            current_state = parse(Int64, parsed_line[3])
-                            input = 0
+                    if all(x -> !isnothing(tryparse(Float64, x)), next_line)
+                        prob = map(x -> parse(Float64, x), next_line)
 
-                            get_transition_prob_next_line!(current_state, input, trans_prob_index, trans_prob_values, index, number_of_states, trans_prob_occurences)
+                    elseif isequal(next_line[1], "uniform")
+                        prob = "uniform"
 
-                        elseif isequal(parsed_line[3], "*")
-                            turn_into_number!(parsed_line, name_of_states, name_of_actions, [2])
-
-                            input = parse(Int64, parsed_line[2]) 
-                            current_state = 0
-
-                            get_transition_prob_next_line!(current_state, input, trans_prob_index, trans_prob_values, index, number_of_states, trans_prob_occurences)
-                        else
-                            error("Unable to parse this line")
-                        end
-                    elseif number_wild_cards == 2
-                        current_state = 0
-                        input = 0
-
-                        get_transition_prob_next_line!(current_state, input, trans_prob_index, trans_prob_values, index, number_of_states, trans_prob_occurences)
+                    elseif isequal(next_line[1], "identity")
+                        prob = "identity"
                     else
-                        @warn "TBI: cannot parse this line \n\n"
+                        error("I am not sure how to parse this line. Please check the file in line $index.")
                     end
+
+                    process_line!(SizeEqualThree(parsed_line), prob, name_of_states, name_of_actions, name_of_states_obs, number_wild_cards, prob_indices, prob_values)
+               
                 elseif length(checking_third_param) == 2  # the transition probability will be given in the same line
                     parsed_line[3] = ""
                     parsed_line = filter(x -> !isempty(x), parsed_line)
                     map(x -> push!(parsed_line,x), checking_third_param)
 
-                    number_wild_cards = count(x -> isequal(x, "*"), parsed_line)
-                    
                     prob = strip(parsed_line[4]) |> split
+                    
+                    process_line!(SizeEqualThree(parsed_line), prob, name_of_states, name_of_actions, name_of_states_obs, number_wild_cards, prob_indices, prob_values)
 
-                    if number_wild_cards == 0
-                        turn_into_number!(parsed_line, name_of_states, name_of_actions, [2,3])
-
-                        input = parse(Int64, parsed_line[2])
-                        current_state = parse(Int64, parsed_line[3])
-
-                        get_transition_prob_number_same_line!(current_state, input, string.(prob), trans_prob_index, trans_prob_values, number_of_states)
-
-                    elseif number_wild_cards == 1
-                        if isequal(parsed_line[2], "*")
-                            turn_into_number!(parsed_line, name_of_states, name_of_actions, [3])
-
-                            current_state = parse(Int64, parsed_line[3])
-                            input = 0
-
-                            get_transition_prob_number_same_line!(current_state, input, string.(prob), trans_prob_index, trans_prob_values, number_of_states)
-
-                        elseif isequal(parsed_line[3], "*")
-                            turn_into_number!(parsed_line, name_of_states, name_of_actions, [2])
-
-                            input = parse(Int64, parsed_line[2])
-                            current_state = 0
-                            
-                            get_transition_prob_number_same_line!(current_state, input, string.(prob), trans_prob_index, trans_prob_values, number_of_states)
-                        else
-                            error("More wild cards than expected. Please check the file.")
-                        end
-
-                    elseif number_wild_cards == 2
-                        current_state = 0
-                        input = 0
-
-                        get_transition_prob_number_same_line!(current_state, input, string.(prob), trans_prob_index, trans_prob_values, number_of_states)
-                    else
-                        print("TBI: transition_prob. Number of wild cards not implemented")
-                    end
                 else
-                    error("I am not sure how to parse this line. Check the file.")
+                    error("I am not sure how to parse this line. Check the line $index in the file.")
                 end
                     
             elseif length(parsed_line) == 2 
             # T : <action>
-                if isequal(parsed_line[2], "*")
-                    for input in 1:number_of_actions
-                        get_transition_prob_matrix!(trans_prob_index, trans_prob_values, input, number_of_states, index, trans_prob_occurences)
+
+                next_line = file[index + 1] |> strip
+
+                if isequal(next_line, "uniform")
+                    prob = 1/number_of_states
+                elseif isequal(next_line, "identity")
+                    prob = 1
+                else
+                    if index + number_of_states > length(lines)
+                        error("Unable to parse the file. Please check the dimension of the transition matrix.")
                     end
 
-                elseif parsed_line[2] in keys(name_of_actions)
-                    turn_into_number!(parsed_line, name_of_states, name_of_actions, [2])
-                    input = parse(Int64, parsed_line[2])
+                    matrix_lines = file[index + 1:index + number_of_states]
 
-                    get_transition_prob_matrix!(trans_prob_index, trans_prob_values, input, number_of_states, index, trans_prob_occurences)
-
-                else
-                    error("Please check the file syntax. Unable to parse the file.")
+                    if all(x -> !isnothing(tryparse.(Float64, split(x))), matrix_lines)
+                        prob = hcat([parse.(Float64, split(row)) for row in matrix_lines]...)' 
+                    end
                 end
+                process_line!(SizeEqualTwo(parsed_line), prob, name_of_states, name_of_actions, name_of_states_obs, number_wild_cards, prob_indices, prob_values)
             else
                 error("Error while parsing the file.")
             end
@@ -1104,11 +906,11 @@ function processing_transition_probability(number_of_states::Int64, number_of_ac
     # println(trans_prob_index, length(trans_prob_index))
     # println(trans_prob_values, length(trans_prob_values))
 
-    @assert length(trans_prob_index) == length(trans_prob_values) "Error while constructing the transition probability. Keys and values must have the same size."
+    @assert length(prob_indices) == length(prob_values) "Error while constructing the transition probability. Keys and values must have the same size."
 
-    trans_prob = OrderedDict(key => trans_prob_values[index] for (index, key) in enumerate(trans_prob_index))
+    parsed_prob = OrderedDict(key => prob_values[index] for (index, key) in enumerate(prob_indices))
 
-    return TransitionProb{Int64}(trans_prob, number_of_states, number_of_actions)
+    return TransitionProb{Int64}(parsed_prob, number_of_states, number_of_actions)
 end
 
 ################ Auxiliary functions -- Observation probability ################## 
@@ -1215,7 +1017,7 @@ end
 
 function processing_observations_probability(number_of_states::Int64, number_of_actions::Int64, number_of_observations::Int64, name_of_states::Dict{String,Int64}, name_of_actions::Dict{String,Int64}, name_of_observations::Dict{String, Int64}, files_obs::Vector{String})
 
-    obs_prob = Dict((states, actions, observations) => 0. for states in 1:number_of_states, actions in 1:number_of_actions, observations in 1:number_of_observations)
+    # obs_prob = Dict((states, actions, observations) => 0. for states in 1:number_of_states, actions in 1:number_of_actions, observations in 1:number_of_observations)
     obs_prob_index = Vector{Tuple{Int64, Int64, Int64}}()
     obs_prob_values = Vector{Float64}()
 
