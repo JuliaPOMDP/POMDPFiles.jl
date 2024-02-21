@@ -17,7 +17,7 @@ for file_path in all_files_path
         tmp = splitdir(target_file)
         target_file = tmp[1] * "/txt-files/" * tmp[2]
 
-        # numericprint(target_file, pomdp_read)
+        numericprint(target_file, pomdp_read)
     end
 
 end
