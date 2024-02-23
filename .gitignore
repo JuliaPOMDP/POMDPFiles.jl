@@ -2,6 +2,6 @@
 *.jl.*.cov
 *.jl.mem
 Manifest.toml
-./test/sources/txt-files
-./test/sources/ejs/txt-files
-./test/sources/cheng-examples/txt-files
+./test/sources/txt-files/*
+./test/sources/ejs/txt-files/*
+./test/sources/cheng-examples/txt-files/*
