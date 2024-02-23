@@ -147,7 +147,7 @@ function read_pomdp(filename::AbstractString)
 
     transition_prob = processing_transition_probability(number(states), number(actions), dic_states, dic_action, dic_states, files_transition)
 
-    obs_prob = processing_observations_probability(number(states), number(actions), number(observations), dic_states, dic_action, dic_obs, files_obs)
+    obs_prob = processing_observations_probability(number(states), number(actions), number(observations), dic_states, dic_action, dic_obs, files_obs, files_obs)
 
     values_matrix = processing_reward_function(number(states), number(actions), number(observations), dic_states, dic_action, dic_obs, files_values)
 
@@ -582,6 +582,23 @@ function turn_into_number!(parsed_line::Vector{String}, name_of_states::Dict{Str
 end
 
 abstract type LineParsing end
+abstract type ProbTrans end
+
+struct ProbStates <: ProbTrans 
+    vector_prob::Union{String, Vector{Float64}}
+    number_of_states::Int64
+end
+
+vecprob(m::ProbStates) = m.vector_prob
+numstates(m::ProbStates) = m.number_of_states
+
+struct ProbObs <: ProbTrans 
+    vector_prob::Union{String, Vector{Float64}}
+    number_of_observations::Int64
+end
+
+vecprob(m::ProbObs) = m.vector_prob
+numstates(m::ProbObs) = m.number_of_observations
 
 struct SizeEqualFour <: LineParsing 
     parsed_line::Vector{String}
@@ -727,7 +744,7 @@ function process_line!(ℓ::SizeEqualFour, prob::Float64, name_of_states::Dict{S
         error("Unable to parse this line. Please check the file.")
     end
     
-    # ℓ = NextLine((current_state, input, next), prob)
+    # println("O:", (current_state,input,next), " ", prob)
     update_prob!((current_state, input, next), prob, prob_indices, prob_values)
 end
 
@@ -1013,9 +1030,13 @@ function get_obs_prob_next_line!(current_state::Int64, input::Int64, obs_prob_in
 end
 
 
-function processing_observations_probability(number_of_states::Int64, number_of_actions::Int64, number_of_observations::Int64, name_of_states::Dict{String,Int64}, name_of_actions::Dict{String,Int64}, name_of_observations::Dict{String, Int64}, files_obs::Vector{String})
+function processing_observations_probability(number_of_states::Int64, number_of_actions::Int64, number_of_observations::Int64, name_of_states::Dict{String,Int64}, name_of_actions::Dict{String,Int64}, name_of_observations::Dict{String, Int64}, files_obs::Vector{String}, file::Vector{String})
 
     # obs_prob = Dict((states, actions, observations) => 0. for states in 1:number_of_states, actions in 1:number_of_actions, observations in 1:number_of_observations)
+
+    prob_indices = Vector{Tuple{Int64, Int64, Int64}}()
+    prob_values = Vector{Float64}()
+
     obs_prob_index = Vector{Tuple{Int64, Int64, Int64}}()
     obs_prob_values = Vector{Float64}()
 
@@ -1039,82 +1060,91 @@ function processing_observations_probability(number_of_states::Int64, number_of_
 
                 if length(checking_fourth_param) == 1 # parameter passed in the next line 
 
-                    number_wild_cards = count(x -> isequal(x, "*"), parsed_line)
-                    
-                    if number_wild_cards == 0 
-                        turn_into_number_obs!(parsed_line, name_of_states, name_of_actions, name_of_observations, [2, 3, 4]) # I may have to chande this function. Last parameter may not be needed
-                        
-                        input = parse(Int64, parsed_line[2]) 
-                        current_state = parse(Int64, parsed_line[3])
-                        obs = parse(Int64, parsed_line[4])
-
-                        if !isnothing(tryparse(Float64, files_obs[index+1]))
-
-                            obs_value = parse(Float64, files_obs[index + 1])
-
-                            push!(obs_prob_index, (current_state, input, obs))
-                            push!(obs_prob_values, obs_value)
-                        else
-                            error("Error while parsing the file. Could not read the observation probability.")
-                        end
-                    elseif number_wild_cards == 1
-                         if isequal(parsed_line[2], "*")
-                            turn_into_number_obs!(parsed_line, name_of_states, name_of_actions, name_of_observations, [3,4]) 
-
-                            current_state = parse(Int64, parsed_line[3])
-                            obs = parse(Int64, parsed_line[4])
-                            input = 0
-
-                            if !isnothing(tryparse(Float64, files_obs[index + 1])) 
-                                obs_value = parse(Float64, files_obs[index + 1])
-
-                                push!(obs_prob_index, (current_state, input, obs))
-                                push!(obs_prob_values, obs_value)
-                            else
-                                error("Error while parsing this line. Could not read the transition probability")
-                            end
-
-                        elseif isequal(parsed_line[3], "*")
-                            turn_into_number_obs!(parsed_line, name_of_states, name_of_actions, name_of_observations, [2,4]) 
-
-                            current_state = 0
-                            input = parse(Int64, parsed_line[2])
-                            obs = parse(Int64, parsed_line[4])
-
-                            if !isnothing(tryparse(Float64, files_obs[index + 1])) 
-                                obs_value = parse(Float64, files_obs[index + 1])
-
-                                push!(obs_prob_index, (current_state, input, obs))
-                                push!(obs_prob_values, obs_value)
-                            else
-                                error("Error while parsing this line. Could not read the transition probability")
-                            end
-
-                        elseif isequal(parsed_line[4], "*")
-
-                            turn_into_number_obs!(parsed_line, name_of_states, name_of_actions, name_of_observations, [2,3]) 
-
-                            input = parse(Int64, parsed_line[2])
-                            current_state = parse(Int64, parsed_line[3])
-                            obs = 0
-
-                            if !isnothing(tryparse(Float64, files_obs[index + 1])) 
-                                obs_value = parse(Float64, files_obs[index + 1])
-
-                                push!(obs_prob_index, (current_state, input, obs))
-                                push!(obs_prob_values, obs_value)
-                            else
-                                error("Error while parsing this line. Could not read the transition probability")
-                            end
-
-                        else
-                            error("BLABLA")
-                        end
-                    elseif number_wild_cards == 2
-                        println("TBI: observation prob")
-                    elseif number_wild_cards == 3
-                        println("TBI: observation probability")
+                    if !isnothing(tryparse(Float64, file[index + 1]))
+                        obs = parse(Float64, file[index + 1])
+                    else
+                        error("Unable to parse line $index")
                     end
+
+                    process_line!(SizeEqualFour(parsed_line), obs, name_of_states, name_of_actions, name_of_observations, number_wild_cards, prob_indices, prob_values)
+
+                    println(file[index])
+                    println(prob_indices, " ",  prob_values)
+
+                    # if number_wild_cards == 0 
+                    #     turn_into_number_obs!(parsed_line, name_of_states, name_of_actions, name_of_observations, [2, 3, 4]) # I may have to chande this function. Last parameter may not be needed
+                        
+                    #     input = parse(Int64, parsed_line[2]) 
+                    #     current_state = parse(Int64, parsed_line[3])
+                    #     obs = parse(Int64, parsed_line[4])
+
+                    #     if !isnothing(tryparse(Float64, files_obs[index+1]))
+
+                    #         obs_value = parse(Float64, files_obs[index + 1])
+
+                    #         push!(obs_prob_index, (current_state, input, obs))
+                    #         push!(obs_prob_values, obs_value)
+                    #     else
+                    #         error("Error while parsing the file. Could not read the observation probability.")
+                    #     end
+                    # elseif number_wild_cards == 1
+                    #      if isequal(parsed_line[2], "*")
+                    #         turn_into_number_obs!(parsed_line, name_of_states, name_of_actions, name_of_observations, [3,4]) 
+
+                    #         current_state = parse(Int64, parsed_line[3])
+                    #         obs = parse(Int64, parsed_line[4])
+                    #         input = 0
+
+                    #         if !isnothing(tryparse(Float64, files_obs[index + 1])) 
+                    #             obs_value = parse(Float64, files_obs[index + 1])
+
+                    #             push!(obs_prob_index, (current_state, input, obs))
+                    #             push!(obs_prob_values, obs_value)
+                    #         else
+                    #             error("Error while parsing this line. Could not read the transition probability")
+                    #         end
+
+                    #     elseif isequal(parsed_line[3], "*")
+                    #         turn_into_number_obs!(parsed_line, name_of_states, name_of_actions, name_of_observations, [2,4]) 
+
+                    #         current_state = 0
+                    #         input = parse(Int64, parsed_line[2])
+                    #         obs = parse(Int64, parsed_line[4])
+
+                    #         if !isnothing(tryparse(Float64, files_obs[index + 1])) 
+                    #             obs_value = parse(Float64, files_obs[index + 1])
+
+                    #             push!(obs_prob_index, (current_state, input, obs))
+                    #             push!(obs_prob_values, obs_value)
+                    #         else
+                    #             error("Error while parsing this line. Could not read the transition probability")
+                    #         end
+
+                    #     elseif isequal(parsed_line[4], "*")
+
+                    #         turn_into_number_obs!(parsed_line, name_of_states, name_of_actions, name_of_observations, [2,3]) 
+
+                    #         input = parse(Int64, parsed_line[2])
+                    #         current_state = parse(Int64, parsed_line[3])
+                    #         obs = 0
+
+                    #         if !isnothing(tryparse(Float64, files_obs[index + 1])) 
+                    #             obs_value = parse(Float64, files_obs[index + 1])
+
+                    #             push!(obs_prob_index, (current_state, input, obs))
+                    #             push!(obs_prob_values, obs_value)
+                    #         else
+                    #             error("Error while parsing this line. Could not read the transition probability")
+                    #         end
+
+                    #     else
+                    #         error("BLABLA")
+                    #     end
+                    # elseif number_wild_cards == 2
+                    #     println("TBI: observation prob")
+                    # elseif number_wild_cards == 3
+                    #     println("TBI: observation probability")
+                    # end
                 elseif length(checking_fourth_param) == 2 # The probability will be in the same line
                     if length(parsed_line) == 5
                         obs_value = parse(Float64, parsed_line[5])
