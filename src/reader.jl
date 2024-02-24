@@ -89,7 +89,7 @@ function read_pomdp(filename::AbstractString)
     # Reading the preamble of the file
     test_preamble = (length(lines) < 200) ? check_preamble_fields(lines[1:end]) : check_preamble_fields(lines[1:200])
 
-    discount, type_reward, actions, states, observations = processing_preamble(test_preamble)
+    discount, type_reward, actions, states, observations = process_preamble(test_preamble)
 
     # Processing the initial distribution
     regex_init_cond = r"\s*start include\s*:|\s*start exclude\s*:|\s*start\s*:"
@@ -102,7 +102,7 @@ function read_pomdp(filename::AbstractString)
     init_state_info = InitialStateParam()
 
     if !isempty(lines[init_state_lines])
-        init_state_info = processing_initial_distribution(states.number_of_states, ss_dic, lines[init_state_lines])
+        init_state_info = process_initial_distribution(states.number_of_states, ss_dic, lines[init_state_lines])
     end
 
     # # Processing transition probability
@@ -145,11 +145,11 @@ function read_pomdp(filename::AbstractString)
     dic_states = Dict(string(nn) => index for (index, nn) in enumerate(names(states)))
     dic_obs = Dict(string(nn) => index for (index, nn) in enumerate(names(observations)))
 
-    transition_prob = processing_transition_probability(number(states), number(actions), dic_states, dic_action, dic_states, files_transition)
+    transition_prob = process_transition_probability(number(states), number(actions), dic_states, dic_action, dic_states, files_transition)
 
-    obs_prob = processing_observations_probability(number(states), number(actions), number(observations), dic_states, dic_action, dic_obs, files_obs, files_obs)
+    obs_prob = process_observations_probability(number(states), number(actions), number(observations), dic_states, dic_action, dic_obs, files_obs, files_obs)
 
-    values_matrix = processing_reward_function(number(states), number(actions), number(observations), dic_states, dic_action, dic_obs, files_values)
+    values_matrix = process_reward_function(number(states), number(actions), number(observations), dic_states, dic_action, dic_obs, files_values)
 
     pomdp_struc = FilePOMDP(number(states), number(actions), number(observations), init_state_info, discount[1], transition_prob, obs_prob, values_matrix)
 
@@ -159,7 +159,7 @@ end
 
 ############# Setting-up a test dataset ####################
 
-function reading_pomdp_dir(dir_path::String)
+function read_pomdp_dir(dir_path::String)
     temp_file = walkdir(dir_path)
 
     file_dir = []
@@ -173,7 +173,7 @@ function reading_pomdp_dir(dir_path::String)
     return file_dir
 end
 ################ Auxiliary functions ##################
-function testing_if_probability(prob::Vector{Float64})
+function test_if_probability(prob::Vector{Float64})
     between_0_1 = all(x -> 0 <= x <= 1, prob)
     return (between_0_1 && isapprox(sum(prob), 1; rtol=1e-3)) ? true : false
 end
@@ -194,12 +194,12 @@ function remove_comments_and_white_space(file::AbstractVector{String})
 
     for (index, line) in enumerate(processed_file)
         tt_line = string(line)
-        before_semicolon = get_before_semicolon(tt_line) |> strip
-        after_semicolon = get_after_semicolon(tt_line) |> strip
+        before_colon = get_before_colon(tt_line) |> strip
+        after_colon = get_after_colon(tt_line) |> strip
 
         # This part of the code is joining in the preamble to facilitate parsing. Otherwise we would have to add code to deal with the case where the parameters are passed in the next line
-        if (before_semicolon in admissible_strings) && isempty(after_semicolon)
-            processed_file[index] = before_semicolon * ":" * processed_file[index + 1]
+        if (before_colon in admissible_strings) && isempty(after_colon)
+            processed_file[index] = before_colon * ":" * processed_file[index + 1]
             processed_file[index+1] = ""
         end
     end
@@ -207,18 +207,18 @@ function remove_comments_and_white_space(file::AbstractVector{String})
     return Vector{String}(filter(x -> !isempty(x), processed_file))
 end
 
-function get_before_semicolon(line::String)
-    regex_before_semicolon = r"([^:]*):"
+function get_before_colon(line::String)
+    regex_before_colon = r"([^:]*):"
 
-    search_pattern = match(regex_before_semicolon, line)
+    search_pattern = match(regex_before_colon, line)
     
     return !isnothing(search_pattern) ? replace(search_pattern.match, r":+" => "") : "none-found"
 end
 
-function get_after_semicolon(line::String)
-    regex_after_semicolon = r":(.)*$"
+function get_after_colon(line::String)
+    regex_after_colon = r":(.)*$"
 
-    search_pattern = match(regex_after_semicolon, line)
+    search_pattern = match(regex_after_colon, line)
 
     if !isnothing(search_pattern)
         return replace(search_pattern.match, r":+" => "")
@@ -230,13 +230,13 @@ end
 function read_ordinal_file(file_name::String; state_size = 20)
     
     ordinal_names = open(readlines, file_name)[1:state_size]
-    ordinal_names = map(x -> replace(get_after_semicolon(x), r"[\s+]" => ""), ordinal_names)
+    ordinal_names = map(x -> replace(get_after_colon(x), r"[\s+]" => ""), ordinal_names)
 
     return Dict([ordinal_names[i] => i for i in 1:state_size])
     
 end
 
-function convert_to_date_structure(field::String, preamble_config::Dict{String,String}) 
+function convert_to_data_structure(field::String, preamble_config::Dict{String,String}) 
 
     entry = preamble_config[field]
     entry = replace(entry, r"\"+" => "")
@@ -252,7 +252,7 @@ function convert_to_date_structure(field::String, preamble_config::Dict{String,S
     return param 
 end
 
-function dealing_with_partial_numbers(ordinal_dictionary::Dict{String, Int64}, initial_state_param::String)
+function deal_with_partial_numbers(ordinal_dictionary::Dict{String, Int64}, initial_state_param::String)
 
     init_state = split(initial_state_param)
     state_size = length(ordinal_dictionary)
@@ -295,7 +295,7 @@ end
 function read_ordinal_file(file_name::String; state_size = 20)
     
     ordinal_names = open(readlines, file_name)[1:state_size]
-    ordinal_names = map(x -> replace(get_after_semicolon(x), r"[\s+]" => ""), ordinal_names)
+    ordinal_names = map(x -> replace(get_after_colon(x), r"[\s+]" => ""), ordinal_names)
 
     return Dict([ordinal_names[i] => i for i in 1:state_size])
     
@@ -315,7 +315,6 @@ function check_preamble_fields(file_lines::Vector{String})
 
         if !isnothing(index) 
             field_dict[field] = index
-            # organized_preamble[field] = get_after_semicolon(file_lines[index]) |> strip
         else
             error("Missing field $(field) in the file")
         end
@@ -327,10 +326,10 @@ function check_preamble_fields(file_lines::Vector{String})
        
         if counter < length(sorted_fields)
             if sorted_fields[counter+1][2] - index_in_file == 1
-                temp_match = get_after_semicolon(file_lines[index_in_file]) |> strip
+                temp_match = get_after_colon(file_lines[index_in_file]) |> strip
             else
                 range_spec = index_in_file:(sorted_fields[counter+1][2]-1)
-                temp_match = join(file_lines[range_spec], " ") |> get_after_semicolon |> strip 
+                temp_match = join(file_lines[range_spec], " ") |> get_after_colon |> strip 
             end
         else
             other_fields = ["T", "O", "R", "start", "start include", "start exclude"]
@@ -349,11 +348,11 @@ function check_preamble_fields(file_lines::Vector{String})
                 error("Error while parsing the preamble. It seems the information about the transitions is missing from the file.")
             else
                 if next_indices - index_in_file == 1 
-                    temp_match = get_after_semicolon(file_lines[index_in_file]) |> strip
+                    temp_match = get_after_colon(file_lines[index_in_file]) |> strip
                 else
                     range_spec = index_in_file:(next_indices-1)
 
-                    temp_match = join(file_lines[range_spec], " ") |> get_after_semicolon |> strip
+                    temp_match = join(file_lines[range_spec], " ") |> get_after_colon |> strip
                 end
             end
 
@@ -365,7 +364,7 @@ function check_preamble_fields(file_lines::Vector{String})
     return Dict{String, String}(kk => mm for (kk,mm) in organized_preamble) 
 end
 
-function processing_preamble(preamble_config::Dict{String, String})
+function process_preamble(preamble_config::Dict{String, String})
 
     # checking discount syntax => it must be a float number
     entry = preamble_config["discount"]
@@ -378,13 +377,13 @@ function processing_preamble(preamble_config::Dict{String, String})
     values_param = [(isequal(entry,"reward")) || (isequal(entry,"cost") || isequal(entry, "rewards") || isequal(entry, "costs")) ? entry : error("Invalid specification for the objective function.")]
 
     # checking actions syntax => either an integer or a collection of names
-    actions_param = convert_to_date_structure("actions", preamble_config) 
+    actions_param = convert_to_data_structure("actions", preamble_config) 
     
     # checking states syntax => either an integer or a collection of names
-    states_param = convert_to_date_structure("states", preamble_config) 
+    states_param = convert_to_data_structure("states", preamble_config) 
 
     # checking observation syntax => either an integer or a collection of names
-    observations_param = convert_to_date_structure("observations", preamble_config)
+    observations_param = convert_to_data_structure("observations", preamble_config)
 
 
     # IT IS MISSING TO TEST WHERE WE HAVE A VECTOR OF STRINGS HERE
@@ -393,9 +392,9 @@ end
 
 ################ Auxiliary functions -- INITIAL DISTRIBUTION ################## 
 
-function processing_initial_distribution_start(state_size::Int64, after_semicolon::String, name_of_states::Dict{String, Int64})
+function process_initial_distribution_start(state_size::Int64, after_colon::String, name_of_states::Dict{String, Int64})
 
-    aux_var = tryparse(Int64, after_semicolon)
+    aux_var = tryparse(Int64, after_colon)
 
     if !isnothing(aux_var) # testing whether is a number
 
@@ -407,22 +406,22 @@ function processing_initial_distribution_start(state_size::Int64, after_semicolo
         support_of_distribution = Set{Int64}(aux_var) 
         return InitialStateParam{Int64}(state_size, "dirac", support_of_distribution, value_of_distribution) 
         
-    elseif all(x -> isa(x, Float64) && (x<=1) && (x>=0) , map(x->tryparse(Float64, replace(x, r"[\"+]|[\[+]|[\]+]|[\,+]" => "")), split(after_semicolon))) # testing whether s₀_param is a probability vector
+    elseif all(x -> isa(x, Float64) && (x<=1) && (x>=0) , map(x->tryparse(Float64, replace(x, r"[\"+]|[\[+]|[\]+]|[\,+]" => "")), split(after_colon))) # testing whether s₀_param is a probability vector
 
-        value_of_distribution =  map(x->parse(Float64, replace(x, r"[\"+]|[\[+]|[\]+]|[\,+]" => "")), split(after_semicolon))
+        value_of_distribution =  map(x->parse(Float64, replace(x, r"[\"+]|[\[+]|[\]+]|[\,+]" => "")), split(after_colon))
         support_of_distribution =  Set(findall(x -> x > 0, value_of_distribution))
         return InitialStateParam{Int64}(state_size, "general distribution", support_of_distribution, value_of_distribution) 
 
-    elseif isequal(replace(after_semicolon, r"[\"+]|[\s+]" => ""), "uniform") # testing initial state is uniform 
+    elseif isequal(replace(after_colon, r"[\"+]|[\s+]" => ""), "uniform") # testing initial state is uniform 
 
         value_of_distribution = (1/state_size)*ones(state_size)
         support_of_distribution = Set{Int64}([i for i in Base.OneTo(state_size)])
 
         return InitialStateParam{Int64}(state_size, "uniform", support_of_distribution, value_of_distribution)
 
-    elseif all(x -> x in keys(name_of_states), split(after_semicolon))
+    elseif all(x -> x in keys(name_of_states), split(after_colon))
 
-        init_state = map(x -> name_of_states[x], split(after_semicolon))
+        init_state = map(x -> name_of_states[x], split(after_colon))
 
         support_of_distribution = Set{Int64}(init_state)
         value_of_distribution = (1/length(support_of_distribution))*sum(Diagonal(ones(state_size))[:,collect(support_of_distribution)], dims=2)
@@ -432,7 +431,7 @@ function processing_initial_distribution_start(state_size::Int64, after_semicolo
         
 
         ordinal_dictionary = read_ordinal_file("initial-state.txt"; state_size) 
-        support_of_distribution, value_of_distribution = dealing_with_partial_numbers(ordinal_dictionary, after_semicolon)
+        support_of_distribution, value_of_distribution = deal_with_partial_numbers(ordinal_dictionary, after_colon)
 
         if !isnothing(support_of_distribution) 
             return InitialStateParam{Int64}(state_size, "uniform", support_of_distribution, vec(value_of_distribution)) 
@@ -444,9 +443,9 @@ function processing_initial_distribution_start(state_size::Int64, after_semicolo
 
 end
 
-function processing_initial_distribution_start_include(state_initial_param::InitialStateParam, after_semicolon::String, name_of_states::Dict{String, Int64})
+function process_initial_distribution_start_include(state_initial_param::InitialStateParam, after_colon::String, name_of_states::Dict{String, Int64})
 
-    init_state = split(after_semicolon)
+    init_state = split(after_colon)
     state_size = state_initial_param.size_of_states
     
     ordinal_dictionary = read_ordinal_file("initial-state.txt"; state_size) 
@@ -488,9 +487,9 @@ function processing_initial_distribution_start_include(state_initial_param::Init
 
 end
 
-function processing_initial_distribution_start_exclude(state_initial_param::InitialStateParam, after_semicolon::String, name_of_states::Dict{String, Int64})
+function process_initial_distribution_start_exclude(state_initial_param::InitialStateParam, after_colon::String, name_of_states::Dict{String, Int64})
 
-    init_state = split(after_semicolon)
+    init_state = split(after_colon)
     state_size = state_initial_param.size_of_states
     
     ordinal_dictionary = read_ordinal_file("initial-state.txt"; state_size) 
@@ -526,27 +525,27 @@ function processing_initial_distribution_start_exclude(state_initial_param::Init
     return InitialStateParam{Int64}(state_size, "uniform", support_of_distribution, vec(value_of_distribution)) 
 end
 
-function processing_initial_distribution(number_of_states::Int64, name_of_states::Dict{String, Int64}, initial_state_ocurrences::Vector{String})
+function process_initial_distribution(number_of_states::Int64, name_of_states::Dict{String, Int64}, initial_state_ocurrences::Vector{String})
     # According to the grammar this can either be a number, a probability distribution over states, or strings (uniform or ordinal description of states)
 
     initial_state_param = InitialStateParam(number_of_states)
     
     for line in initial_state_ocurrences
 
-        type_init_state = get_before_semicolon(line)
-        param_init = get_after_semicolon(line) 
+        type_init_state = get_before_colon(line)
+        param_init = get_after_colon(line) 
        
         if isequal(type_init_state, "start")
             
-            initial_state_param = processing_initial_distribution_start(number_of_states, param_init, name_of_states)
+            initial_state_param = process_initial_distribution_start(number_of_states, param_init, name_of_states)
 
         elseif isequal(type_init_state, "start include")
 
-            initial_state_param = processing_initial_distribution_start_include(initial_state_param, param_init, name_of_states)
+            initial_state_param = process_initial_distribution_start_include(initial_state_param, param_init, name_of_states)
             
         elseif isequal(type_init_state, "start exclude")
 
-            initial_state_param = processing_initial_distribution_start_exclude(initial_state_param, param_init, name_of_states)
+            initial_state_param = process_initial_distribution_start_exclude(initial_state_param, param_init, name_of_states)
         else
             error("Unable to parse the initial condition.")
         end
@@ -804,7 +803,7 @@ function process_line!(ℓ::SizeEqualTwo, prob::Union{ProbObs{T}, ProbStates{T}}
     update_prob!((input,), vecprob(prob), prob_indices, prob_values, numstates(prob), numobs(prob))
 end
 
-function processing_transition_probability(number_of_states::Int64, number_of_actions::Int64, name_of_states::Dict{String,Int64}, name_of_actions::Dict{String,Int64}, name_of_states_obs::Dict{String, Int64}, file::Vector{String})
+function process_transition_probability(number_of_states::Int64, number_of_actions::Int64, name_of_states::Dict{String,Int64}, name_of_actions::Dict{String,Int64}, name_of_states_obs::Dict{String, Int64}, file::Vector{String})
 
 
     prob_indices = Vector{Tuple{Int64, Int64, Int64}}()
@@ -813,7 +812,7 @@ function processing_transition_probability(number_of_states::Int64, number_of_ac
 
     for (index, lines) in enumerate(file)
 
-        if isequal(get_before_semicolon(lines) |> strip, "T")
+        if isequal(get_before_colon(lines) |> strip, "T")
             parsed_line = string.(strip.(split(lines, ':')))
 
             if length(parsed_line) == 4 
@@ -934,109 +933,7 @@ end
 
 ################ Auxiliary functions -- Observation probability ################## 
 
-function get_observation_matrix!(obs_prob_index::Vector{NTuple{3, Int}}, obs_prob_values::Vector{Float64}, input::Int64, number_of_states::Int64, number_of_observations::Int64, index::Int64, files_obs::Vector{String})
-    # Need to check whether it is a matrix, identity, or uniform
-    if (index + 1) > length(files_obs)
-        error("It seems this file does not contain information about the observation transition probability. Unable to parse the file.")
-    end
-
-    next_line = files_obs[index + 1] |> strip
-    
-    if isequal(next_line, "uniform")
-        prob_val = 1/number_of_observations
-
-        for current_state in 1:number_of_states
-            for obs in 1:number_of_observations 
-                push!(obs_prob_index, (current_state, input, obs))
-                push!(obs_prob_values, prob_val)
-            end
-        end
-    else
-        if index + number_of_states > length(files_obs)
-            error("Unable to parse the file. Please check the dimension of the observation matrix.")
-        end
-
-        matrix_lines = files_obs[index + 1:index + number_of_states]
-
-
-        if all(x -> !isnothing(tryparse.(Float64, split(x))), matrix_lines)
-
-            matrix_obs = hcat([parse.(Float64, split(row)) for row in matrix_lines]...)' 
-
-            for current_state in 1:number_of_states
-                if testing_if_probability(matrix_obs[current_state,:])
-                    for obs in 1:number_of_observations 
-                        push!(obs_prob_index, (current_state, input, obs))
-                        push!(obs_prob_values, matrix_obs[current_state, obs])
-                    end
-                else
-                    @warn "One or more matrix's row is not a probability vector\n\n"
-                    println(sum(matrix_obs[current_state,:]))
-                    println(matrix_obs[current_state,:])
-                end
-            end
-        else
-            error("Please check the file. Unable to parse the transition probability associated with action $(input)")
-        end
-    end
-end
-
-function turn_into_number_obs!(parsed_line::Vector{String}, name_of_states::Dict{String, Int64}, name_of_actions::Dict{String, Int64}, name_of_obs::Dict{String, Int64}, indices::Vector{Int64})
-
-    # the index parameter serves to select whether or not the entry is allowed to be substituted. This is essential to deal with the wild card
-
-    if !isempty(name_of_states)
-        if 3 in indices
-            parsed_line[3] = string(name_of_states[parsed_line[3]])  
-        end
-    end
-
-    if !isempty(name_of_obs)
-        if 4 in indices
-            parsed_line[4] = string(name_of_obs[parsed_line[4]]) 
-        end
-    end
-
-    if !isempty(name_of_actions)
-        if 2 in indices
-            parsed_line[2] = string(name_of_actions[parsed_line[2]])
-        end
-    end
-end
-
-function get_obs_prob_next_line!(current_state::Int64, input::Int64, obs_prob_index::Vector{NTuple{3, Int64}}, obs_prob_values::Vector{Float64}, index::Int64, number_of_observations::Int64, files_obs::Vector{String})
-
-    next_line =  string.(split(files_obs[index + 1])) 
-
-    if all(x -> !isnothing(tryparse(Float64, x)), next_line)
-        prob = map(x -> parse(Float64, x), next_line)
-
-        if testing_if_probability(prob) && (length(prob) == number_of_observations) 
-
-            for (obs, obs_value) in enumerate(prob)
-
-                push!(obs_prob_index, (current_state, input, obs))
-                push!(obs_prob_values, obs_value)
-            end
-        elseif isequal(next_line[1], "uniform")
-
-            for obs in 1:number_of_observations
-                push!(obs_prob_index, (current_state, input, obs))
-                push!(obs_prob_values, 1/number_of_observations)
-            end
-        else 
-            error("I am not sure how to parse this line")
-        end
-    else
-        error("Unable to parse this line. Please check the file")
-    end
-    
-end
-
-
-function processing_observations_probability(number_of_states::Int64, number_of_actions::Int64, number_of_observations::Int64, name_of_states::Dict{String,Int64}, name_of_actions::Dict{String,Int64}, name_of_observations::Dict{String, Int64}, files_obs::Vector{String}, file::Vector{String})
-
-    # obs_prob = Dict((states, actions, observations) => 0. for states in 1:number_of_states, actions in 1:number_of_actions, observations in 1:number_of_observations)
+function process_observations_probability(number_of_states::Int64, number_of_actions::Int64, number_of_observations::Int64, name_of_states::Dict{String,Int64}, name_of_actions::Dict{String,Int64}, name_of_observations::Dict{String, Int64}, files_obs::Vector{String}, file::Vector{String})
 
     prob_indices = Vector{Tuple{Int64, Int64, Int64}}()
     prob_values = Vector{Float64}()
@@ -1047,7 +944,7 @@ function processing_observations_probability(number_of_states::Int64, number_of_
 
     for (index, lines) in enumerate(files_obs)
 
-        if isequal(get_before_semicolon(lines) |> strip, "O")
+        if isequal(get_before_colon(lines) |> strip, "O")
             parsed_line = string.(strip.(split(lines, ':')))
             
             if length(parsed_line) == 4 
@@ -1160,11 +1057,11 @@ function processing_observations_probability(number_of_states::Int64, number_of_
         end
     end
     
-    @assert length(obs_prob_index) == length(obs_prob_values) "Error while constructing the transition probability. Keys and values must have the same size."
+    @assert length(prob_indices) == length(prob_values) "Error while constructing the transition probability. Keys and values must have the same size."
 
-    obs_prob = OrderedDict(key => obs_prob_values[index] for (index, key) in enumerate(obs_prob_index))
-
-    return ObservationProb{Int64}(obs_prob, number_of_states, number_of_actions, number_of_observations)
+    parsed_prob = OrderedDict(key => prob_values[index] for (index, key) in enumerate(prob_indices))
+    
+    return ObservationProb{Int64}(parsed_prob, number_of_states, number_of_actions, number_of_observations)
 end
 
 ################ Auxiliary functions -- REWARD ################## 
@@ -1202,14 +1099,14 @@ function turn_into_number_values!(parsed_line::Vector{String}, name_of_states::D
     end
 end
 
-function processing_reward_function(number_of_states::Int64, number_of_actions::Int64, number_of_observations::Int64, name_of_states::Dict{String,Int64}, name_of_actions::Dict{String,Int64}, name_of_observations::Dict{String, Int64}, files_values::Vector{String})
+function process_reward_function(number_of_states::Int64, number_of_actions::Int64, number_of_observations::Int64, name_of_states::Dict{String,Int64}, name_of_actions::Dict{String,Int64}, name_of_observations::Dict{String, Int64}, files_values::Vector{String})
 
     # values_dic = Dict((states, actions, next_state, observations) => 0. for states in 1:number_of_states, actions in 1:number_of_actions, next_state in 1:number_of_states, observations in 1:number_of_observations)
     reward_index = Vector{NTuple{4, Int64}}()
     reward_values = Vector{Float64}()
 
     for (index, lines) in enumerate(files_values)
-        if isequal(get_before_semicolon(lines) |> strip, "R")
+        if isequal(get_before_colon(lines) |> strip, "R")
             parsed_line = string.(strip.(split(lines, ':')))
             # print(parsed_line, "\n\n")
 

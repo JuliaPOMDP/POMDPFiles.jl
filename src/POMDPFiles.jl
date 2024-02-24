@@ -13,7 +13,7 @@ using OrderedCollections, LinearAlgebra
 
 import POMDPs: action, value
 
-export read_alpha, read_pomdp, reading_pomdp_dir
+export read_alpha, read_pomdp, read_pomdp_dir
 include("reader.jl")
 
 export numericprint, symbolicprint

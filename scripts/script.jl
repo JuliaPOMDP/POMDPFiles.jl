@@ -3,7 +3,7 @@ using POMDPFiles, POMDPModels, OrderedCollections
 using POMDPs
 
 dir_path = "./../test/sources/"
-all_files_path = reading_pomdp_dir(dir_path)
+all_files_path = read_pomdp_dir(dir_path)
 
 regex_filename = r"^(.*)\.[Pp][Oo][Mm][Dd][Pp]$"
 
