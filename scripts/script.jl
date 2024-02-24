@@ -7,7 +7,7 @@ all_files_path = reading_pomdp_dir(dir_path)
 
 regex_filename = r"^(.*)\.[Pp][Oo][Mm][Dd][Pp]$"
 
-for file_path in all_files_path[6:6]
+for file_path in all_files_path[1:end]
     ff_name = match(regex_filename, file_path)
 
     if !isnothing(ff_name)
