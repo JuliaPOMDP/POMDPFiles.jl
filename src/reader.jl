@@ -585,7 +585,7 @@ abstract type LineParsing end
 abstract type ProbTrans end
 abstract type TypeOfTransition end
 
-struct DynamicTransition 
+struct DynamicTransition <: TypeOfTransition 
     pre_colon::String
     number_of_states::Int64
     number_of_actions::Int64
@@ -594,12 +594,32 @@ struct DynamicTransition
     permitted_names::Vector{String}
 end
 
+DynamicTransition() = DynamicTransition("", 0, 0, 0, Vector{String}())
+
 numstates(T::DynamicTransition) = T.number_of_states
 numactions(T::DynamicTransition) = T.number_of_actions
 numobs(T::DynamicTransition) = T.number_of_observations
 
 allowablefields(T::DynamicTransition) = T.permitted_names
 generate_prob(::DynamicTransition, prob, number_of_states) = ProbStates{typeof(prob)}(prob, number_of_states)
+
+struct ObsTransition <: TypeOfTransition 
+    pre_colon::String
+    number_of_states::Int64
+    number_of_actions::Int64
+    number_of_observations::Int64
+
+    permitted_names::Vector{String}
+end
+
+ObsTransition() = ObsTransition("", 0, 0, 0, Vector{String}())
+
+numstates(O::ObsTransition) = O.number_of_states
+numactions(O::ObsTransition) = O.number_of_actions
+numobs(O::ObsTransition) = O.number_of_observations
+
+allowablefields(O::ObsTransition) = O.permitted_names
+generate_prob(::ObsTransition, prob, number_of_states, number_of_observations) = ProbObs{typeof(prob)}(prob, number_of_states, number_of_observations)
 # CONTINURE FROM HERE
 #  struct 
 # end
