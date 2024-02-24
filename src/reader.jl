@@ -147,7 +147,7 @@ function read_pomdp(filename::AbstractString)
 
     transition_prob = process_transition_probability(number(states), number(actions), dic_states, dic_action, dic_states, files_transition)
 
-    obs_prob = process_observations_probability(number(states), number(actions), number(observations), dic_states, dic_action, dic_obs, files_obs, files_obs)
+    obs_prob = process_observations_probability(number(states), number(actions), number(observations), dic_states, dic_action, dic_obs, files_obs)
 
     values_matrix = process_reward_function(number(states), number(actions), number(observations), dic_states, dic_action, dic_obs, files_values)
 
@@ -172,6 +172,7 @@ function read_pomdp_dir(dir_path::String)
 
     return file_dir
 end
+
 ################ Auxiliary functions ##################
 function test_if_probability(prob::Vector{Float64})
     between_0_1 = all(x -> 0 <= x <= 1, prob)
@@ -582,6 +583,25 @@ end
 
 abstract type LineParsing end
 abstract type ProbTrans end
+abstract type TypeOfTransition end
+
+struct DynamicTransition 
+    pre_colon::String
+    number_of_states::Int64
+    number_of_actions::Int64
+    number_of_observations::Int64
+
+    permitted_names::Vector{String}
+end
+
+numstates(T::DynamicTransition) = T.number_of_states
+numactions(T::DynamicTransition) = T.number_of_actions
+numobs(T::DynamicTransition) = T.number_of_observations
+
+allowablefields(T::DynamicTransition) = T.permitted_names
+generate_prob(::DynamicTransition, prob, number_of_states) = ProbStates{typeof(prob)}(prob, number_of_states)
+#  struct 
+# end
 
 struct ProbStates{T} <: ProbTrans where T 
     vector_prob::T
@@ -637,6 +657,7 @@ function update_prob!(indices::NTuple{2, Int64}, prob::Union{ProbObs, ProbStates
         prob_val[indices[1]] = 1
     else
         prob_val = _prob
+        @assert test_if_probability(prob_val)
     end
 
     for (next, value_prob) in enumerate(prob_val)
@@ -669,6 +690,7 @@ end
 function update_prob!(input::Tuple{Int64}, prob::AbstractMatrix{Float64}, prob_indices::Vector{NTuple{3, Int64}}, prob_values::Vector{Float64}, dim1::Int64, dim2::Int64)
 
     for current_state in 1:dim1
+        @assert test_if_probability(prob[current_state,:])
         for next_state in 1:dim2
             ii = (current_state, input..., next_state)
             push!(prob_indices, ii)
@@ -933,16 +955,13 @@ end
 
 ################ Auxiliary functions -- Observation probability ################## 
 
-function process_observations_probability(number_of_states::Int64, number_of_actions::Int64, number_of_observations::Int64, name_of_states::Dict{String,Int64}, name_of_actions::Dict{String,Int64}, name_of_observations::Dict{String, Int64}, files_obs::Vector{String}, file::Vector{String})
+function process_observations_probability(number_of_states::Int64, number_of_actions::Int64, number_of_observations::Int64, name_of_states::Dict{String,Int64}, name_of_actions::Dict{String,Int64}, name_of_observations::Dict{String, Int64}, file::Vector{String})
 
     prob_indices = Vector{Tuple{Int64, Int64, Int64}}()
     prob_values = Vector{Float64}()
 
-    obs_prob_index = Vector{Tuple{Int64, Int64, Int64}}()
-    obs_prob_values = Vector{Float64}()
 
-
-    for (index, lines) in enumerate(files_obs)
+    for (index, lines) in enumerate(file)
 
         if isequal(get_before_colon(lines) |> strip, "O")
             parsed_line = string.(strip.(split(lines, ':')))
