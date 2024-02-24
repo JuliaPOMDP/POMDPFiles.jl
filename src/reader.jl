@@ -600,6 +600,7 @@ numobs(T::DynamicTransition) = T.number_of_observations
 
 allowablefields(T::DynamicTransition) = T.permitted_names
 generate_prob(::DynamicTransition, prob, number_of_states) = ProbStates{typeof(prob)}(prob, number_of_states)
+# CONTINURE FROM HERE
 #  struct 
 # end
 
