@@ -1,8 +1,11 @@
 using POMDPFiles, POMDPModels, OrderedCollections
 using POMDPs, D3Trees, ARDESPOT, POMDPTools, POMCPOW  
 
+# Working:  1d.noisy, 1d, mcc-example1, mcc-example2
+# Problem: bulkhead, 
+
 # regex_filename = r"^(.*)\.[Pp][Oo][Mm][Dd][Pp]$"
-file_path = "./../test/sources/1d.noisy.POMDP"
+file_path = "./../test/sources/milos-aaai97.POMDP"
     
 # ff_name = match(regex_filename, file_path)
 
@@ -33,7 +36,7 @@ pomdp_read = read_pomdp(file_path)
 solver = POMCPOWSolver(criterion=MaxUCB(20.0))
 planner = solve(solver, pomdp_read)
 
-hr = HistoryRecorder(max_steps=30)
+hr = HistoryRecorder(max_steps=1)
 hist = simulate(hr, pomdp_read, planner)
 for (s, b, a, r, sp, o) in hist
     @show s, a, r, sp
