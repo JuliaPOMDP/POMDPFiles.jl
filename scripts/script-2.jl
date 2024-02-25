@@ -13,7 +13,7 @@ target_file = tmp[1] * "/txt-files/" * tmp[2]
 
 pomdp_read = read_pomdp(file_path)
 
-numericprint(target_file, pomdp_read)
+# numericprint(target_file, pomdp_read)
 
 print("POMDP read! \n\n\n")
 

@@ -581,6 +581,8 @@ function turn_into_number!(parsed_line::Vector{String}, name_of_states::Dict{Str
     end
 end
 
+#######
+
 abstract type LineParsing end
 abstract type ProbTrans end
 abstract type TypeOfTransition end
@@ -625,9 +627,6 @@ allowablefields(O::ObsTransition) = O.permitted_names
 generate_prob(::ObsTransition, prob, number_of_states, number_of_observations) = ProbObs{typeof(prob)}(prob, number_of_states, number_of_observations)
 
 savetrans(O::ObsTransition, parsed_prob::OrderedDict{NTuple{3, Int64}, Float64}) = ObservationProb{Int64}(parsed_prob, numstates(O), numactions(O), numobs(O))
-# CONTINURE FROM HERE
-#  struct 
-# end
 
 struct ProbStates{T} <: ProbTrans where T 
     vector_prob::T
@@ -846,9 +845,6 @@ function process_line!(ℓ::SizeEqualTwo, prob::Union{ProbObs{T}, ProbStates{T}}
 
         input = parse(Int64, parsed_line[2])
     end
-
-    # println(vecprob(prob))
-    # println(prob)
 
     update_prob!((input,), vecprob(prob), prob_indices, prob_values, numstates(prob), numobs(prob))
 end
