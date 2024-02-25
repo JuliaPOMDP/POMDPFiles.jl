@@ -3,7 +3,7 @@ using POMDPFiles, POMDPModels, OrderedCollections
 using POMDPs
 
 regex_filename = r"^(.*)\.[Pp][Oo][Mm][Dd][Pp]$"
-file_path = "./../test/sources/bridge-repair.POMDP"
+file_path = "./../test/sources/1d.noisy.POMDP"
     
 ff_name = match(regex_filename, file_path)
 
