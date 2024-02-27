@@ -7,7 +7,7 @@ all_files_path = read_pomdp_dir(dir_path)
 
 regex_filename = r"^(.*)\.[Pp][Oo][Mm][Dd][Pp]$"
 
-for file_path in all_files_path[1:5]
+for file_path in all_files_path
     ff_name = match(regex_filename, file_path)
 
     if !isnothing(ff_name)
@@ -18,7 +18,7 @@ for file_path in all_files_path[1:5]
         tmp = splitdir(target_file)
         target_file = tmp[1] * "/txt-files/" * tmp[2]
 
-        numericprint(target_file, pomdp_read)
+        # numericprint(target_file, pomdp_read)
     end
 
 end

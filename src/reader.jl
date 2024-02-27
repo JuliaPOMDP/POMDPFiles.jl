@@ -81,23 +81,22 @@ function read_alpha(filename::AbstractString)
     return alpha_vectors, alpha_actions
 end
 
-function read_pomdp(filename::AbstractString)
+function read_pomdp(filename::String)
     # All files are assumed to be without comments and without empty lines here. I need to create a file that remove comments and empty lines 
     # I am also assuming the the first line starts with the compulsory parameters. This must also be dealt with before calling the functions below
 
     lines = open(readlines, filename) |> remove_comments_and_white_space
     # Reading the preamble of the file
-    test_preamble = (length(lines) < 200) ? check_preamble_fields(lines[1:end]) : check_preamble_fields(lines[1:200])
+    test_preamble = check_preamble_fields(lines)
 
     discount, type_reward, actions, states, observations = process_preamble(test_preamble)
+    
+    ss_dic = Dict{String, Int64}(nn => index for (index, nn) in enumerate(string.(states.names_of_states)))
 
     # Processing the initial distribution
     regex_init_cond = r"\s*start include\s*:|\s*start exclude\s*:|\s*start\s*:"
 
-
     init_state_lines = findall(startswith.(lines, regex_init_cond)) 
-
-    ss_dic = Dict{String, Int64}(nn => index for (index, nn) in enumerate(string.(states.names_of_states)))
 
     init_state_info = InitialStateParam()
 
@@ -115,7 +114,6 @@ function read_pomdp(filename::AbstractString)
 
     # Finding the chunk of the file with the transition, observation, and reward specifications
     for (index, (type_of_matrix, line_number)) in enumerate(sorted_fields)
-
         if index  < length(sorted_fields)
             range_spec = line_number:(sorted_fields[index+1][2] -1)
             if isequal(type_of_matrix, "T")

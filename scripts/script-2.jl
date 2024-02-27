@@ -1,11 +1,13 @@
 using POMDPFiles, POMDPModels, OrderedCollections
 using POMDPs, D3Trees, ARDESPOT, POMDPTools, POMCPOW  
+using BenchmarkTools
 
 # Working:  1d.noisy, 1d, mcc-example1, mcc-example2
 # Problem: bulkhead, 
 
 # regex_filename = r"^(.*)\.[Pp][Oo][Mm][Dd][Pp]$"
-file_path = "./../test/sources/milos-aaai97.POMDP"
+
+file_path = "./../test/sources/1d.pomdp"
     
 # ff_name = match(regex_filename, file_path)
 
@@ -13,7 +15,14 @@ file_path = "./../test/sources/milos-aaai97.POMDP"
 # tmp = splitdir(target_file)
 # target_file = tmp[1] * "/txt-files/" * tmp[2]
 
+# TODO: Have this as a constructor
+
 pomdp_read = read_pomdp(file_path)
+
+s0 = rand(initialstate(pomdp_read))
+a0 = rand(actions(pomdp_read))
+
+@time transition(pomdp_read, s0, a0)
 
 # solver = DESPOTSolver(bounds=(-20.0, 0.0), tree_in_info=true)
 # planner = solve(solver, pomdp_read)
@@ -33,19 +42,20 @@ pomdp_read = read_pomdp(file_path)
 # a_tt, info_tt = action_info(planner_tt, b0_tt)
 # inchrome(D3Tree(info_tt[:tree], init_expand=5))
 
-solver = POMCPOWSolver(criterion=MaxUCB(20.0))
-planner = solve(solver, pomdp_read)
+# solver = POMCPOWSolver(criterion=MaxUCB(20.0))
+# planner = solve(solver, pomdp_read)
 
-hr = HistoryRecorder(max_steps=1)
-hist = simulate(hr, pomdp_read, planner)
-for (s, b, a, r, sp, o) in hist
-    @show s, a, r, sp
-end
+hr = HistoryRecorder(max_steps=10000)
+# hist = simulate(hr, pomdp_read, planner)
+# for (s, b, a, r, sp, o) in hist
+#     @show s, a, r, sp
+# end
 
-rhist = simulate(hr, pomdp_read, RandomPolicy(pomdp_read))
-println("""
-    Cumulative Discounted Reward (for 1 simulation)
-        Random: $(discounted_reward(rhist))
-        POMCPOW: $(discounted_reward(hist))
-    """)
+@time rhist = simulate(hr, pomdp_read, RandomPolicy(pomdp_read))
+# println("""
+#     Cumulative Discounted Reward (for 1 simulation)
+#         Random: $(discounted_reward(rhist))
+#         POMCPOW: $(discounted_reward(hist))
+#     """)
 
+nothing

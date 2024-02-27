@@ -5,6 +5,7 @@ version = "0.2.4"
 
 [deps]
 ARDESPOT = "d96c9ae4-3372-47d5-8a88-316ae77be8cf"
+BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
 D3Trees = "e3df1716-f71e-5df9-9e2d-98e193103c45"
 DiscreteValueIteration = "4b033969-44f6-5439-a48b-c11fa3648068"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
