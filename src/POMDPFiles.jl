@@ -11,8 +11,10 @@ using OrderedCollections, LinearAlgebra
 
 import POMDPs: transition, reward, discount, observation, states, stateindex, actions, actionindex, observations, obsindex, initialstate 
 
-export FilePOMDP, SFilePOMDP, statenames, actionnames, obsnames 
 include("types.jl")
+
+export FilePOMDP, SFilePOMDP, statenames, actionnames, obsnames 
+include("FilePOMDPs.jl")
 
 export read_alpha, read_pomdp, read_pomdp_dir
 include("reader.jl")
