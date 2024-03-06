@@ -19,6 +19,8 @@ file_path = "./../test/sources/1d.pomdp"
 
 pomdp_read = read_pomdp(file_path)
 
+methods(initialstate)
+
 s0 = rand(initialstate(pomdp_read))
 a0 = rand(actions(pomdp_read))
 

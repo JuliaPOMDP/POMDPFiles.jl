@@ -11,6 +11,32 @@ using OrderedCollections, LinearAlgebra
 
 import POMDPs: action, value
 
+include("types.jl")
+export 
+    StateParam,
+    ActionsParam,
+    InitialStateParam,
+    ObservationParam,
+
+    number,
+    prob,
+    support,
+
+    TransitionProb,
+    ObservationProb,
+    RewardValue,
+
+    max_num_states,
+    dict,
+
+    FilePOMDP,
+    SFilePOMDP,
+
+    statenames,
+    actionnames,
+    obsnames,
+    initialstate
+
 export read_alpha, read_pomdp, read_pomdp_dir
 include("reader.jl")
 

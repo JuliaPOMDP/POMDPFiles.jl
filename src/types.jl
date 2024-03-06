@@ -256,7 +256,7 @@ discount(m::FilePOMDP{Int64}) = m.discount
 
 # Data structure with names
 
-struct SFilePOMDP{String} <: POMDP{Int64, Int64, Int64}
+struct SFilePOMDP{String} <: POMDP{String, String, String}
     dic_states::Dict{String, Int64}
     dic_actions::Dict{String, Int64}
     dic_obs::Dict{String, Int64}
