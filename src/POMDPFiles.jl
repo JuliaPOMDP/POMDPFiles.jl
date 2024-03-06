@@ -9,33 +9,10 @@ using OrderedCollections, LinearAlgebra
 
 @reexport using POMDPXFiles # for POMDPAlphas
 
-import POMDPs: action, value
+import POMDPs: transition, reward, discount, observation, states, stateindex, actions, actionindex, observations, obsindex, initialstate 
 
+export FilePOMDP, SFilePOMDP, statenames, actionnames, obsnames 
 include("types.jl")
-export 
-    StateParam,
-    ActionsParam,
-    InitialStateParam,
-    ObservationParam,
-
-    number,
-    prob,
-    support,
-
-    TransitionProb,
-    ObservationProb,
-    RewardValue,
-
-    max_num_states,
-    dict,
-
-    FilePOMDP,
-    SFilePOMDP,
-
-    statenames,
-    actionnames,
-    obsnames,
-    initialstate
 
 export read_alpha, read_pomdp, read_pomdp_dir
 include("reader.jl")

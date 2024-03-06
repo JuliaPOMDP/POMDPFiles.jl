@@ -6,7 +6,7 @@ end
 
 function ActionsParam(number_of_actions::Int)
     # @warn "Defining the action names from -1 to $(number_of_actions-1)"
-    names_of_actions = [string(i) for i in -1:(number_of_actions-1)]
+    names_of_actions = [string(i) for i in 0:(number_of_actions-1)]
     
     return ActionsParam(names_of_actions, number_of_actions)
 end
@@ -192,8 +192,6 @@ function Base.getindex(reward::RewardLookUp, key::NTuple{4, Int})
 end
 
 ##### 
-
-
 struct FilePOMDP{Int64} <: POMDP{Int64, Int64, Int64} 
     number_of_states::Int64
     number_of_actions::Int64
@@ -210,6 +208,8 @@ struct FilePOMDP{Int64} <: POMDP{Int64, Int64, Int64}
 end
 
 FilePOMDP(s::Int64, a::Int64, o::Int64, initial_state::InitialStateParam, discount::Float64, T::TransitionProb, O::ObservationProb, R::RewardLookUp)= FilePOMDP(s, a, o, support(initial_state), prob(initial_state), discount, T, O, R)  
+
+FilePOMDP(filename::String) = read_pomdp(filename, :FilePOMDP)
 
 states(m::FilePOMDP{Int64}) = 1:m.number_of_states
 stateindex(m::FilePOMDP{Int64}, i::Int64) = (i <= m.number_of_states) ? i : error("Querying states outside the allowable range.")
@@ -273,6 +273,8 @@ struct SFilePOMDP{String} <: POMDP{String, String, String}
 
     end
 end
+
+SFilePOMDP(filename::String) = read_pomdp(filename)
 
 states(m::SFilePOMDP{String}) = states(m.pomdp)
 stateindex(m::SFilePOMDP{String}, key::Int64) = stateindex(m.pomdp, key)

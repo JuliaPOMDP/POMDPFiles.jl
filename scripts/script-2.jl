@@ -5,21 +5,15 @@ using BenchmarkTools
 # Working:  1d.noisy, 1d, mcc-example1, mcc-example2
 # Problem: bulkhead, 
 
-# regex_filename = r"^(.*)\.[Pp][Oo][Mm][Dd][Pp]$"
 
-file_path = "./../test/sources/1d.pomdp"
+file_path = "./../test/sources/1d.noisy.POMDP"
     
-# ff_name = match(regex_filename, file_path)
-
-# target_file = ff_name.captures[1] * ".txt"
-# tmp = splitdir(target_file)
-# target_file = tmp[1] * "/txt-files/" * tmp[2]
-
 # TODO: Have this as a constructor
 
 pomdp_read = read_pomdp(file_path)
+TT = FilePOMDP(file_path)
 
-methods(initialstate)
+println(typeof(initialstate(pomdp_read)))
 
 s0 = rand(initialstate(pomdp_read))
 a0 = rand(actions(pomdp_read))

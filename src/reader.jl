@@ -81,7 +81,7 @@ function read_alpha(filename::AbstractString)
     return alpha_vectors, alpha_actions
 end
 
-function read_pomdp(filename::String)
+function read_pomdp(filename::String, output::Symbol = :SFilePOMDP)
     # All files are assumed to be without comments and without empty lines here. I need to create a file that remove comments and empty lines 
     # I am also assuming the the first line starts with the compulsory parameters. This must also be dealt with before calling the functions below
 
@@ -148,11 +148,16 @@ function read_pomdp(filename::String)
     obs_prob = process_transitions(ObsTransition("O", number(states), number(actions), number(observations), ["uniform"]), dic_states, dic_action, dic_obs, files_obs)
 
     values_matrix = process_reward_function(number(states), number(actions), number(observations), dic_states, dic_action, dic_obs, files_values)
-
+    
     pomdp_struc = FilePOMDP(number(states), number(actions), number(observations), init_state_info, discount[1], transition_prob, obs_prob, values_matrix)
-
-    return SFilePOMDP(dic_states, dic_action, dic_obs, pomdp_struc)
-
+    
+    if output == :FilePOMDP
+        return pomdp_struc
+    elseif output == :SFilePOMDP
+        return SFilePOMDP(dic_states, dic_action, dic_obs, pomdp_struc)
+    else
+        error("Output type invalid")
+    end
 end
 
 ############# Setting-up a test dataset ####################
