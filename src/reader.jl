@@ -146,7 +146,8 @@ function read_pomdp(filename::String, output::Symbol = :SFilePOMDP)
 
     transition_prob = process_transitions(DynamicTransition("T", number(states), number(actions), ["uniform", "identity"]), dic_states, dic_action, dic_states, files_transition)
     obs_prob = process_transitions(ObsTransition("O", number(states), number(actions), number(observations), ["uniform"]), dic_states, dic_action, dic_obs, files_obs)
-    values_matrix = process_reward_function(number(states), number(actions), number(observations), dic_states, dic_action, dic_obs, files_values)
+    # values_matrix = process_reward_function(number(states), number(actions), number(observations), dic_states, dic_action, dic_obs, files_values)
+    values_matrix = _process_transitions(ValueTransition("R", number(states), number(actions), number(observations), []), dic_states, dic_action, dic_obs, files_values)
 
     pomdp_struc = FilePOMDP(number(states), number(actions), number(observations), init_state_info, discount[1], transition_prob, obs_prob, values_matrix)
 
@@ -454,32 +455,53 @@ end
 
 ################ Auxiliary functions -- TRANSITION PROBABILITY ################## 
 
-function turn_into_number!(parsed_line::Vector{String}, name_of_states::Dict{String, Int64}, name_of_actions::Dict{String, Int64}, name_of_states_obs::Dict{String, Int64}, indices::Vector{Int64})
+abstract type LineParsing end
+abstract type ProbTrans end
+abstract type TypeOfTransition end
+
+function turn_into_number!(ℓ::LineParsing, name_of_states::Dict{String, Int64}, name_of_actions::Dict{String, Int64}, name_of_states_obs::Dict{String, Int64}, indices::Vector{Int64})
     # the index parameter serves to select whether or not the entry is allowed to be substituted. This is essential to deal with the wild card
     if !isempty(name_of_states)
         if 3 in indices
-            parsed_line[3] = string(name_of_states[parsed_line[3]])  
+            if isnothing(tryparse(Int64, ℓ.parsed_line[3]))
+                ℓ.parsed_line[3] = string(name_of_states[ℓ.parsed_line[3]])  
+            end
         end
     end
 
     if !isempty(name_of_states_obs)
-        if 4 in indices
-            parsed_line[4] = string(name_of_states_obs[parsed_line[4]]) 
+        # Different parsing if we are reading a value line
+        if typeof(ℓ) == SizeEqualFive
+            if 4 in indices
+                if isnothing(tryparse(Int64, ℓ.parsed_line[4]))
+                    ℓ.parsed_line[4] = string(name_of_states[ℓ.parsed_line[4]])  
+                end
+            end
+            
+            if 5 in indices
+                if isnothing(tryparse(Int64, ℓ.parsed_line[5]))
+                    ℓ.parsed_line[5] = string(name_of_states_obs[ℓ.parsed_line[5]])  
+                end
+            end
+        else
+            if 4 in indices
+                if isnothing(tryparse(Int64, ℓ.parsed_line[4]))
+                    ℓ.parsed_line[4] = string(name_of_states_obs[ℓ.parsed_line[4]])  
+                end
+            end
         end
     end
 
     if !isempty(name_of_actions)
         if 2 in indices
-            parsed_line[2] = string(name_of_actions[parsed_line[2]])
+            if isnothing(tryparse(Int64, ℓ.parsed_line[2]))
+                ℓ.parsed_line[2] = string(name_of_actions[ℓ.parsed_line[2]])  
+            end
         end
     end
 end
 
 #######
-
-abstract type LineParsing end
-abstract type ProbTrans end
-abstract type TypeOfTransition end
 
 struct DynamicTransition <: TypeOfTransition 
     pre_colon::String
@@ -495,6 +517,10 @@ precolon(T::DynamicTransition) = T.pre_colon
 numstates(T::DynamicTransition) = T.number_of_states
 numactions(T::DynamicTransition) = T.number_of_actions
 numobs(T::DynamicTransition) = T.number_of_states
+
+
+initindex(::DynamicTransition) = Vector{NTuple{3, Int64}}() 
+initvalue(::DynamicTransition) = Vector{Float64}()
 
 allowablefields(T::DynamicTransition) = T.permitted_names
 generate_prob(::DynamicTransition, prob, number_of_states, number_of_observations) = ProbStates{typeof(prob)}(prob, number_of_states)
@@ -517,10 +543,37 @@ numstates(O::ObsTransition) = O.number_of_states
 numactions(O::ObsTransition) = O.number_of_actions
 numobs(O::ObsTransition) = O.number_of_observations
 
+initindex(::ObsTransition) = Vector{NTuple{3, Int64}}() 
+initvalue(::ObsTransition) = Vector{Float64}()
+
 allowablefields(O::ObsTransition) = O.permitted_names
 generate_prob(::ObsTransition, prob, number_of_states, number_of_observations) = ProbObs{typeof(prob)}(prob, number_of_states, number_of_observations)
 
 savetrans(O::ObsTransition, parsed_prob::OrderedDict{NTuple{3, Int64}, Float64}) = ObservationProb{Int64}(parsed_prob, numstates(O), numactions(O), numobs(O))
+
+struct ValueTransition <: TypeOfTransition 
+    pre_colon::String
+    number_of_states::Int64
+    number_of_actions::Int64
+    number_of_observations::Int64
+    
+    permitted_names::Vector{String}
+end
+
+ValueTransition() = ValueTransition("", 0, 0, 0, Vector{String}()) 
+
+precolon(R::ValueTransition) = R.pre_colon
+numstates(R::ValueTransition) = R.number_of_states
+numactions(R::ValueTransition) = R.number_of_actions
+numobs(R::ValueTransition) = R.number_of_observations
+
+initindex(::ValueTransition) = Vector{NTuple{4, Int64}}() 
+initvalue(::ValueTransition) = Vector{Float64}()
+
+allowablefields(R::ValueTransition) = R.permitted_names
+generate_prob(::ValueTransition, prob, number_of_states, number_of_observations) = ProbObs{typeof(prob)}(prob, number_of_states, number_of_observations)
+
+savetrans(R::ValueTransition, value_prob::OrderedDict{NTuple{4, Int64}, Float64}) = RewardValue{Int64}(value_prob, numstates(R), numactions(R), numobs(R))
 
 struct ProbStates{T} <: ProbTrans where T 
     vector_prob::T
@@ -541,6 +594,12 @@ vecprob(m::ProbObs) = m.vector_prob
 numstates(m::ProbObs) = m.number_of_states
 numobs(m::ProbObs) = m.number_of_observations
 
+struct SizeEqualFive <: LineParsing 
+    parsed_line::Vector{String}
+end
+
+line(ℓ::SizeEqualFive) = ℓ.parsed_line
+
 struct SizeEqualFour <: LineParsing 
     parsed_line::Vector{String}
 end
@@ -558,6 +617,11 @@ struct SizeEqualTwo <: LineParsing
 end
 
 line(ℓ::SizeEqualTwo) = ℓ.parsed_line
+
+function update_prob!(indices::NTuple{4, Int64}, prob::Float64, prob_indices::Vector{NTuple{4, Int64}}, prob_values::Vector{Float64})
+    push!(prob_indices, indices)
+    push!(prob_values, prob)
+end
 
 function update_prob!(indices::NTuple{3, Int64}, prob::Float64, prob_indices::Vector{NTuple{3, Int64}}, prob_values::Vector{Float64})
     push!(prob_indices, indices)
@@ -614,61 +678,204 @@ function update_prob!(input::Tuple{Int64}, prob::AbstractMatrix{Float64}, prob_i
     end
 end
 
-function process_line!(ℓ::SizeEqualFour, prob::Float64, name_of_states::Dict{String, Int64}, name_of_actions::Dict{String, Int64}, name_of_states_obs::Dict{String, Int64}, number_wild_cards::Int64, prob_indices::Vector{NTuple{3, Int64}}, prob_values::Vector{Float64})
-    parsed_line = line(ℓ)
 
-    if number_wild_cards == 0 
-        turn_into_number!(parsed_line, name_of_states, name_of_actions, name_of_states_obs, [2, 3, 4]) # I may have to chande this function. Last parameter may not be needed
-        
-        input = parse(Int64, parsed_line[2]) 
-        current_state = parse(Int64, parsed_line[3])
-        next = parse(Int64, parsed_line[4])
+function process_line!(ℓ::SizeEqualFive, prob::Float64, name_of_states::Dict{String, Int64}, name_of_actions::Dict{String, Int64}, name_of_observations::Dict{String, Int64}, number_wild_cards::Int64, prob_indices::Vector{NTuple{4, Int64}}, prob_values::Vector{Float64})
+    if number_wild_cards == 0
+        turn_into_number!(ℓ, name_of_states, name_of_actions, name_of_observations, [2,3,4,5])
+
+        current_state = parse(Int64, ℓ.parsed_line[3])
+        input = parse(Int64, ℓ.parsed_line[2])
+        next_state = parse(Int64, ℓ.parsed_line[4])
+        obs = parse(Int64, ℓ.parsed_line[5])
 
     elseif number_wild_cards == 1
-        if isequal(parsed_line[2], "*")
-            turn_into_number!(parsed_line, name_of_states, name_of_actions, name_of_states_obs, [3,4]) 
+        if isequal(ℓ.parsed_line[2], "*") 
+            turn_into_number!(ℓ, name_of_states, name_of_actions, name_of_observations, [3,4,5])
 
-            current_state = parse(Int64, parsed_line[3])
-            next = parse(Int64, parsed_line[4])
+            current_state = parse(Int64, ℓ.parsed_line[3])
             input = 0
+            next_state = parse(Int64, ℓ.parsed_line[4])
+            obs = parse(Int64, ℓ.parsed_line[5])
 
-        elseif isequal(parsed_line[3], "*")
-            turn_into_number!(parsed_line, name_of_states, name_of_actions, name_of_states_obs, [2,4]) 
+        elseif isequal(ℓ.parsed_line[3], "*")
+            turn_into_number!(ℓ, name_of_states, name_of_actions, name_of_observations, [2,4,5])
 
             current_state = 0
-            input = parse(Int64, parsed_line[2])
-            next = parse(Int64, parsed_line[4])
-        
-        elseif isequal(parsed_line[4], "*")
-            turn_into_number!(parsed_line, name_of_states, name_of_actions, name_of_states_obs, [2,3]) 
+            input = parse(Int64, ℓ.parsed_line[2])
+            next_state = parse(Int64, ℓ.parsed_line[4])
+            obs = parse(Int64, ℓ.parsed_line[5])
 
-            input = parse(Int64, parsed_line[2])
-            current_state = parse(Int64, parsed_line[3])
+        elseif isequal(ℓ.parsed_line[4], "*")
+            turn_into_number!(ℓ, name_of_states, name_of_actions, name_of_observations, [2,3,5])
+
+            current_state = parse(Int64, ℓ.parsed_line[3])
+            input = parse(Int64, ℓ.parsed_line[2])
+            next_state = 0
+            obs = parse(Int64, ℓ.parsed_line[5])
+
+        elseif isequal(ℓ.parsed_line[5], "*")
+            turn_into_number!(ℓ, name_of_states, name_of_actions, name_of_observations, [2,3,4])
+
+            current_state = parse(Int64, ℓ.parsed_line[3])
+            input = parse(Int64, ℓ.parsed_line[2])
+            next_state = parse(Int64, ℓ.parsed_line[4])
+            obs = 0
+        end
+
+    elseif number_wild_cards == 2
+        if isequal(ℓ.parsed_line[2], "*") && isequal(ℓ.parsed_line[3], "*")
+            turn_into_number!(ℓ, name_of_states, name_of_actions, name_of_observations, [4, 5])
+
+            current_state = 0
+            input = 0
+            next_state = parse(Int64, ℓ.parsed_line[4])
+            obs = parse(Int64, ℓ.parsed_line[5]) 
+        end
+        
+        if isequal(ℓ.parsed_line[2], "*") && isequal(ℓ.parsed_line[4], "*")
+            turn_into_number!(ℓ, name_of_states, name_of_actions, name_of_observations, [3, 5])
+
+            current_state = parse(Int64, ℓ.parsed_line[3])
+            input = 0
+            next_state = 0
+            obs = parse(Int64, ℓ.parsed_line[5]) 
+        end
+        
+        if isequal(ℓ.parsed_line[2], "*") && isequal(ℓ.parsed_line[5], "*")
+            turn_into_number!(ℓ, name_of_states, name_of_actions, name_of_observations, [3, 4])
+
+            current_state = parse(Int64, ℓ.parsed_line[3])
+            input = 0
+            next_state = parse(Int64, ℓ.parsed_line[4]) 
+            obs = 0
+        end
+        
+        if isequal(ℓ.parsed_line[3], "*") && isequal(ℓ.parsed_line[4], "*")
+            turn_into_number!(ℓ, name_of_states, name_of_actions, name_of_observations, [2, 5])
+
+            current_state = 0
+            input = parse(Int64, ℓ.parsed_line[2])
+            next_state = 0
+            obs = parse(Int64, ℓ.parsed_line[5]) 
+        end
+
+        if isequal(ℓ.parsed_line[3], "*") && isequal(ℓ.parsed_line[5], "*")
+            turn_into_number!(ℓ, name_of_states, name_of_actions, name_of_observations, [2, 4])
+
+            current_state = 0
+            input = parse(Int64, ℓ.parsed_line[2])
+            obs = 0
+            next_state = parse(Int64, ℓ.parsed_line[4]) 
+        end
+        
+        if isequal(ℓ.parsed_line[4], "*") && isequal(ℓ.parsed_line[5], "*")
+            turn_into_number!(ℓ, name_of_states, name_of_actions, name_of_observations, [2, 3])
+
+            current_state = parse(Int64, ℓ.parsed_line[3]) 
+            input = parse(Int64, ℓ.parsed_line[2])
+            next_state = 0
+            obs = 0
+        end
+    elseif number_wild_cards == 3
+        if isequal(ℓ.parsed_line[2], "*") && isequal(ℓ.parsed_line[3], "*") && isequal(ℓ.parsed_line[4], "*")
+            turn_into_number!(ℓ, name_of_states, name_of_actions, name_of_observations, [5])
+
+            current_state = 0
+            input = 0
+            next_state = 0
+            obs = parse(Int64, ℓ.parsed_line[5])
+        end
+
+        if isequal(ℓ.parsed_line[2], "*") && isequal(ℓ.parsed_line[3], "*") && isequal(ℓ.parsed_line[5], "*")
+            turn_into_number!(ℓ, name_of_states, name_of_actions, name_of_observations, [4])
+
+            current_state = 0
+            input = 0
+            next_state = parse(Int64, ℓ.parsed_line[4])
+            obs = 0
+        end
+        
+        if isequal(ℓ.parsed_line[2], "*") && isequal(ℓ.parsed_line[4], "*") && isequal(ℓ.parsed_line[5], "*")
+            turn_into_number!(ℓ, name_of_states, name_of_actions, name_of_observations, [3])
+
+            current_state = parse(Int64, ℓ.parsed_line[3])
+            input = 0
+            next_state = 0
+            obs = 0
+        end
+        
+        if isequal(ℓ.parsed_line[3], "*") && isequal(ℓ.parsed_line[4], "*") && isequal(ℓ.parsed_line[5], "*")
+            turn_into_number!(ℓ, name_of_states, name_of_actions, name_of_observations, [2])
+
+            current_state = 0
+            input = parse(Int64, ℓ.parsed_line[2])
+            next_state = 0
+            obs = 0
+        end
+    elseif number_wild_cards == 4
+        input = 0
+        current_state = 0
+        next_state = 0
+        obs = 0
+    end
+    
+    update_prob!((current_state, input, next_state, obs), prob, prob_indices, prob_values)
+end
+
+function process_line!(ℓ::SizeEqualFour, prob::Float64, name_of_states::Dict{String, Int64}, name_of_actions::Dict{String, Int64}, name_of_states_obs::Dict{String, Int64}, number_wild_cards::Int64, prob_indices::Vector{NTuple{3, Int64}}, prob_values::Vector{Float64})
+    if number_wild_cards == 0 
+        turn_into_number!(ℓ, name_of_states, name_of_actions, name_of_states_obs, [2, 3, 4]) # I may have to chande this function. Last parameter may not be needed
+        
+        input = parse(Int64, ℓ.parsed_line[2]) 
+        current_state = parse(Int64, ℓ.parsed_line[3])
+        next = parse(Int64, ℓ.parsed_line[4])
+
+    elseif number_wild_cards == 1
+        if isequal(ℓ.parsed_line[2], "*")
+            turn_into_number!(ℓ, name_of_states, name_of_actions, name_of_states_obs, [3,4]) 
+
+            current_state = parse(Int64, ℓ.parsed_line[3])
+            next = parse(Int64, ℓ.parsed_line[4])
+            input = 0
+
+        elseif isequal(ℓ.parsed_line[3], "*")
+            turn_into_number!(ℓ, name_of_states, name_of_actions, name_of_states_obs, [2,4]) 
+
+            current_state = 0
+            input = parse(Int64, ℓ.parsed_line[2])
+            next = parse(Int64, ℓ.parsed_line[4])
+        
+        elseif isequal(ℓ.parsed_line[4], "*")
+            turn_into_number!(ℓ, name_of_states, name_of_actions, name_of_states_obs, [2,3]) 
+
+            input = parse(Int64, ℓ.parsed_line[2])
+            current_state = parse(Int64, ℓ.parsed_line[3])
             next = 0
         else
             error("Unable to parse the position of the wild card")
         end
-    elseif number_wild_cards == 2 # I HAVE CHECKED THIS FUNCTIONS UP TO THIS POINT
-        if isequal(parsed_line[4], "*")
-            if isequal(parsed_line[3], "*")
-                turn_into_number!(parsed_line, name_of_states, name_of_actions, name_of_states_obs, [2]) 
 
-                input = parse(Int64, parsed_line[2])
+    elseif number_wild_cards == 2 
+        if isequal(ℓ.parsed_line[4], "*")
+            if isequal(ℓ.parsed_line[3], "*")
+                turn_into_number!(ℓ, name_of_states, name_of_actions, name_of_states_obs, [2]) 
+
+                input = parse(Int64, ℓ.parsed_line[2])
                 current_state = 0
                 next = 0
-            elseif isequal(parsed_line[2], "*")
-                turn_into_number!(parsed_line, name_of_states, name_of_actions, name_of_states_obs, [3]) 
+            elseif isequal(ℓ.parsed_line[2], "*")
+                turn_into_number!(ℓ, name_of_states, name_of_actions, name_of_states_obs, [3]) 
 
-                current_state = parse(Int64, parsed_line[3])
+                current_state = parse(Int64, ℓ.parsed_line[3])
                 input = 0
                 next = 0
             else
                 error("Unable to parse this line. Please check the file.")
             end
-        elseif isequal(parsed_line[2], "*") && isequal(parsed_line[3], "*") 
-            turn_into_number!(parsed_line, name_of_states, name_of_actions, name_of_states_obs, [4]) 
+        elseif isequal(ℓ.parsed_line[2], "*") && isequal(ℓ.parsed_line[3], "*") 
+            turn_into_number!(ℓ, name_of_states, name_of_actions, name_of_states_obs, [4]) 
 
-            next = parse(Int64, parsed_line[4])
+            next = parse(Int64, ℓ.parsed_line[4])
             input = 0
             current_state = 0
         else
@@ -686,25 +893,23 @@ function process_line!(ℓ::SizeEqualFour, prob::Float64, name_of_states::Dict{S
 end
 
 function process_line!(ℓ::SizeEqualThree, prob::Union{ProbObs, ProbStates}, name_of_states::Dict{String, Int64}, name_of_actions::Dict{String, Int64}, name_of_states_obs::Dict{String, Int64}, number_wild_cards::Int64, prob_indices::Vector{NTuple{3, Int64}}, prob_values::Vector{Float64}) 
-    parsed_line = line(ℓ)
-
     if number_wild_cards == 0 
-        turn_into_number!(parsed_line, name_of_states, name_of_actions, name_of_states_obs, [2,3]) # I may have to chande this function. Last parameter may not be needed
+        turn_into_number!(ℓ, name_of_states, name_of_actions, name_of_states_obs, [2,3]) # I may have to chande this function. Last parameter may not be needed
 
-        input = parse(Int64, parsed_line[2]) 
-        current_state = parse(Int64, parsed_line[3])
+        input = parse(Int64, ℓ.parsed_line[2]) 
+        current_state = parse(Int64, ℓ.parsed_line[3])
 
     elseif number_wild_cards == 1
-        if isequal(parsed_line[2], "*")
-            turn_into_number!(parsed_line, name_of_states, name_of_actions, name_of_states_obs, [3])
+        if isequal(ℓ.parsed_line[2], "*")
+            turn_into_number!(ℓ, name_of_states, name_of_actions, name_of_states_obs, [3])
 
-            current_state = parse(Int64, parsed_line[3])
+            current_state = parse(Int64, ℓ.parsed_line[3])
             input = 0
 
-        elseif isequal(parsed_line[3], "*")
-            turn_into_number!(parsed_line, name_of_states, name_of_actions, name_of_states_obs, [2])
+        elseif isequal(ℓ.parsed_line[3], "*")
+            turn_into_number!(ℓ, name_of_states, name_of_actions, name_of_states_obs, [2])
 
-            input = parse(Int64, parsed_line[2]) 
+            input = parse(Int64, ℓ.parsed_line[2]) 
             current_state = 0
 
         else
@@ -721,14 +926,12 @@ function process_line!(ℓ::SizeEqualThree, prob::Union{ProbObs, ProbStates}, na
 end
 
 function process_line!(ℓ::SizeEqualTwo, prob::Union{ProbObs{T}, ProbStates{T}}, name_of_states::Dict{String, Int64}, name_of_actions::Dict{String, Int64}, name_of_states_obs::Dict{String, Int64}, prob_indices::Vector{NTuple{3, Int64}}, prob_values::Vector{Float64}) where T
-    parsed_line = line(ℓ)
 
-    if isequal(parsed_line[2], "*")
+    if isequal(ℓ.parsed_line[2], "*")
         input = 0
-    elseif parsed_line[2] in keys(name_of_actions)
-        turn_into_number!(parsed_line, name_of_states, name_of_actions, name_of_states_obs, [2])
-
-        input = parse(Int64, parsed_line[2])
+    elseif ℓ.parsed_line[2] in keys(name_of_actions)
+        turn_into_number!(ℓ, name_of_states, name_of_actions, name_of_states_obs, [2])
+        input = parse(Int64, ℓ.parsed_line[2])
     end
 
     update_prob!((input,), vecprob(prob), prob_indices, prob_values, numstates(prob), numobs(prob))
@@ -750,8 +953,193 @@ function process_transitions(μ::TypeOfTransition, name_of_states::Dict{String,I
 
         if isequal(get_before_colon(lines) |> strip, type_of_trans)
             parsed_line = string.(strip.(split(lines, ':')))
+            
+            # if length(parsed_line) == 5
+            #     # R: <action> : <start-state> : <next-state> : <observation>
+            #     checking_fifth_param = split(parsed_line[4], " ", limit=2) # variable used to check whether the parameter is in the next line
+                
+            #     # The code below puts the parameter (if any) within the a Vector{String} structure
+            #     temp_str = string.(split(parsed_line[5]))
+            #     parsed_line[5] = ""
+            #     parsed_line = filter(x->!isempty(x), parsed_line)
+            #     map(x->push!(parsed_line, x), temp_str)
+
+            #     number_wild_cards = count(x -> isequal(x, "*"), parsed_line)
+
+            #     if length(checking_fourth_param) == 1 # parameter passed in the next line
+            #         if !isnothing(tryparse(Float64, file[index + 1]))
+            #             prob = parse(Float64, file[index + 1])
+            #         else
+            #             error("Unable to parse line $index")
+            #         end
+
+            #         process_line!(SizeEqualFive(parsed_line), prob, name_of_states, name_of_actions, name_of_states_obs, number_wild_cards, prob_indices, prob_values)
+            #     end
+ 
 
             if length(parsed_line) == 4 
+                # T: <action> : <start-state> : <next-state> or
+                # O: <action> : <start-state> : <next-state> or
+                # R: <action> : <start-state> : <end-state>
+                checking_fourth_param = split(parsed_line[4], " ", limit=2) # variable used to check whether the parameter is in the next line
+
+                # The code below puts the parameter (if any) within the a Vector{String} structure
+                temp_str = string.(split(parsed_line[4]))
+                parsed_line[4] = ""
+                parsed_line = filter(x->!isempty(x), parsed_line)
+                map(x->push!(parsed_line, x), temp_str)
+
+                number_wild_cards = count(x -> isequal(x, "*"), parsed_line)
+
+                if length(checking_fourth_param) == 1 # parameter passed in the next line
+                    if !isnothing(tryparse(Float64, file[index + 1]))
+                        prob = parse(Float64, file[index + 1])
+                    else
+                        error("Unable to parse line $index")
+                    end
+
+                    process_line!(SizeEqualFour(parsed_line), prob, name_of_states, name_of_actions, name_of_states_obs, number_wild_cards, prob_indices, prob_values)
+                
+                elseif length(checking_fourth_param) == 2 # parameter in the same line
+                    if length(parsed_line) == 5
+                            prob = parse(Float64, parsed_line[5])
+                    else
+                        error("Unable to parse line $index")
+                        # @warn "I am assing this probability to one"
+                        # prob = 1.
+                    end
+
+                    process_line!(SizeEqualFour(parsed_line), prob, name_of_states, name_of_actions, name_of_states_obs, number_wild_cards, prob_indices, prob_values)
+                else
+                    error("Unable to process this file.")
+                end
+
+            elseif length(parsed_line) == 3
+                # T: <action> : <start-state> or
+                # O: <action> : <start-state> or
+                # R: <action> : <start-state>
+                checking_third_param = split(parsed_line[3], " ", limit=2)
+                number_wild_cards = count(x -> isequal(x, "*"), parsed_line)
+
+                if length(checking_third_param) == 1 # The transition probability will be on the next line
+                    next_line =  string.(split(file[index + 1])) 
+
+                    if all(x -> !isnothing(tryparse(Float64, x)), next_line)
+                        prob = map(x -> parse(Float64, x), next_line)
+
+                    elseif next_line[1] in fields_admissible
+                        prob = next_line[1]
+                    else
+                        error("I am not sure how to parse this line. Please check the file in line $index.")
+                    end
+
+                    process_line!(SizeEqualThree(parsed_line), generate_prob(typeof(μ)(), prob, number_of_states, number_of_observations), name_of_states, name_of_actions, name_of_states_obs, number_wild_cards, prob_indices, prob_values)
+               
+                elseif length(checking_third_param) == 2  # the transition probability will be given in the same line
+                    parsed_line[3] = ""
+                    parsed_line = filter(x -> !isempty(x), parsed_line)
+                    map(x -> push!(parsed_line,x), checking_third_param)
+                
+                    number_wild_cards = count(x -> isequal(x, "*"), parsed_line)
+
+                    prob = strip(parsed_line[4]) |> split
+                    prob = string.(prob)
+
+                    if all(x -> !isnothing(tryparse(Float64, x)), prob)
+                        prob = map(x -> parse(Float64, x), prob)
+                    end
+                    
+                    process_line!(SizeEqualThree(parsed_line), generate_prob(typeof(μ)(), prob, number_of_states, number_of_observations), name_of_states, name_of_actions, name_of_states_obs, number_wild_cards, prob_indices, prob_values)
+
+                else
+                    error("I am not sure how to parse this line. Check the line $index in the file.")
+                end
+                    
+            elseif length(parsed_line) == 2 
+            # T : <action> or
+            # O : <action>
+                next_line = file[index + 1] |> strip
+
+                if isequal(next_line, "uniform")
+                    # numobs returns number of states if parsing state transitions
+                    prob = 1/numobs(μ)
+                elseif isequal(next_line, "identity")
+                    prob = 1
+                else
+                    # numobs returns number of states if parsing state transitions
+                    if index + number_of_states > length(file)
+                        error("Unable to parse the file. Please check the dimension of the transition matrix.")
+                    end
+
+                    matrix_lines = file[index + 1:index + number_of_states]
+
+                    if all(x -> !isnothing(tryparse.(Float64, split(x))), matrix_lines)
+                        prob = hcat([parse.(Float64, split(row)) for row in matrix_lines]...)' 
+                    end
+                end
+                
+                process_line!(SizeEqualTwo(parsed_line), generate_prob(typeof(μ)(), prob, number_of_states, number_of_observations), name_of_states, name_of_actions, name_of_states_obs, prob_indices, prob_values)
+            else
+                error("Error while parsing the file.")
+            end
+        end
+    end
+
+    @assert length(prob_indices) == length(prob_values) "Error while constructing the transition probability. Keys and values must have the same size."
+    parsed_prob = OrderedDict(key => prob_values[index] for (index, key) in enumerate(prob_indices))
+
+    return savetrans(μ, parsed_prob) 
+end
+
+
+function _process_transitions(μ::TypeOfTransition, name_of_states::Dict{String,Int64}, name_of_actions::Dict{String,Int64}, name_of_states_obs::Dict{String, Int64}, file::Vector{String})
+    number_of_states = numstates(μ)
+    number_of_observations = numobs(μ)
+
+    prob_indices = initindex(μ) 
+    prob_values = initvalue(μ) 
+
+    fields_admissible = allowablefields(μ)
+
+    for (index, lines) in enumerate(file)
+        type_of_trans = precolon(μ)
+
+        if isequal(get_before_colon(lines) |> strip, type_of_trans)
+            parsed_line = string.(strip.(split(lines, ':')))
+
+            if length(parsed_line) == 5
+                # R: <action> : <start-state> : <next-state> : <observation>
+                checking_fifth_param = split(parsed_line[5], " ", limit=2) # variable used to check whether the parameter is in the next line
+                
+                # The code below puts the parameter (if any) within the a Vector{String} structure
+                temp_str = string.(split(parsed_line[5]))
+                parsed_line[5] = ""
+                parsed_line = filter(x->!isempty(x), parsed_line)
+                map(x->push!(parsed_line, x), temp_str)
+
+                number_wild_cards = count(x -> isequal(x, "*"), parsed_line)
+
+                if length(checking_fifth_param) == 1 # parameter passed in the next line
+                    println(parsed_line)
+                    if !isnothing(tryparse(Float64, file[index + 1]))
+                        prob = parse(Float64, file[index + 1])
+                    else
+                        error("Unable to parse line $index")
+                    end
+
+                    process_line!(SizeEqualFive(parsed_line), prob, name_of_states, name_of_actions, name_of_states_obs, number_wild_cards, prob_indices, prob_values)
+
+                elseif length(checking_fifth_param) == 2 # parameter in the same line
+                    if length(parsed_line) == 6
+                            prob = parse(Float64, parsed_line[6])
+                    else
+                        error("Unable to parse line $index")
+                    end
+                    
+                    process_line!(SizeEqualFive(parsed_line), prob, name_of_states, name_of_actions, name_of_states_obs, number_wild_cards, prob_indices, prob_values)
+                end
+
+            elseif length(parsed_line) == 4 
                 # T: <action> : <start-state> : <next-state> or
                 # O: <action> : <start-state> : <next-state>
                 checking_fourth_param = split(parsed_line[4], " ", limit=2) # variable used to check whether the parameter is in the next line
@@ -863,39 +1251,43 @@ function process_transitions(μ::TypeOfTransition, name_of_states::Dict{String,I
     return savetrans(μ, parsed_prob) 
 end
 
+
+
+
+
+
+
 ################ Auxiliary functions -- REWARD ################## 
+# function turn_into_number_values!(parsed_line::Vector{String}, name_of_states::Dict{String, Int64}, name_of_actions::Dict{String, Int64}, name_of_observations::Dict{String, Int64}, indices::Vector{Int64})
+#     # If we define numbers for states this function may not work well
+#     if !isempty(name_of_states)
+#         if 3 in indices
+#             parsed_line[3] = string(name_of_states[parsed_line[3]])
+#         end
+#     end
+#         if 4 in indices
+#             if isnothing(tryparse(Int64, parsed_line[4]))
+#                 parsed_line[4] = string(name_of_states[parsed_line[4]])
+#             end
+#         end
+#     end
 
-function turn_into_number_values!(parsed_line::Vector{String}, name_of_states::Dict{String, Int64}, name_of_actions::Dict{String, Int64}, name_of_observations::Dict{String, Int64}, indices::Vector{Int64})
-    # If we define numbers for states this function may not work well
-    if !isempty(name_of_states)
-        if 3 in indices
-            if isnothing(tryparse(Int64, parsed_line[3]))
-                parsed_line[3] = string(name_of_states[parsed_line[3]])
-            end
-        end
-        if 4 in indices
-            if isnothing(tryparse(Int64, parsed_line[4]))
-                parsed_line[4] = string(name_of_states[parsed_line[4]])
-            end
-        end
-    end
-
-    if !isempty(name_of_observations)
-        if 5 in indices
-            if isnothing(tryparse(Int64, parsed_line[5]))
-                parsed_line[5] = string(name_of_observations[parsed_line[5]]) 
-            end
-        end
-    end
+#     if !isempty(name_of_observations)
+#         if 5 in indices
+#             if isnothing(tryparse(Int64, parsed_line[5]))
+#                 parsed_line[5] = string(name_of_observations[parsed_line[5]]) 
+#             end
+#         end
+#     end
     
-    if !isempty(name_of_actions)
-        if 2 in indices
-            if isnothing(tryparse(Int64, parsed_line[2]))
-                parsed_line[2] = string(name_of_actions[parsed_line[2]])
-            end
-        end
-    end
-end
+#     if !isempty(name_of_actions)
+#         if 2 in indices
+#             if isnothing(tryparse(Int64, parsed_line[2]))
+#                 parsed_line[2] = string(name_of_actions[parsed_line[2]])
+#             end
+#         end
+#     end
+# end
 
 function process_reward_function(number_of_states::Int64, number_of_actions::Int64, number_of_observations::Int64, name_of_states::Dict{String,Int64}, name_of_actions::Dict{String,Int64}, name_of_observations::Dict{String, Int64}, files_values::Vector{String})
     # values_dic = Dict((states, actions, next_state, observations) => 0. for states in 1:number_of_states, actions in 1:number_of_actions, next_state in 1:number_of_states, observations in 1:number_of_observations)
@@ -1202,111 +1594,3 @@ function process_reward_function(number_of_states::Int64, number_of_actions::Int
 
     return RewardValue{Int64}(value_prob, number_of_states, number_of_actions, number_of_observations)
 end
-
-############ GENERATING JULIA CODE WITH THE INFORMATION READ ########################
-
-function generate_julia_pomdp_struct(name_of_file::String, name_of_POMDP::String) 
-    packages_def = """
-
-    using POMDPs, Distributions, POMDPModelTools
-    """
-
-    struct_def = """
-    struct $name_of_POMDP <: POMDP{Int, Int, Int} 
-        number_of_states::Int64
-        name_of_states::Vector{String}
-
-        number_of_actions::Int64
-        name_of_actions::Vector{String}
-
-        number_of_observations::Int64
-        name_of_observations::Vector{String}
-
-        support_of_distribution::Set{Int64}
-        value_of_distribution::Vector{Float64}
-
-        discount::Float64
-
-        T::TransitionProb
-        O::ObservationProb
-        R::RewardLookUp
-    end
-    """
-
-    constructor_def = """
-    $name_of_POMDP(s::StateParam, a::ActionsParam, o::ObservationParam, initial_state::InitialStateParam, discount::Float64, T::TransitionProb, O::ObservationProb, R::RewardLookUp)= $name_of_POMDP(s.number_of_states, s.names_of_states, a.number_of_actions, a.names_of_actions, o.number_of_observations, o.names_of_observations, initial_state.support_of_distribution, initial_state.value_of_distribution, discount, T, O, R)
-
-    $name_of_POMDP(s::StateParam, a::ActionsParam, o::ObservationParam, discount::Float64, T::TransitionProb, O::ObservationProb, R::RewardLookUp) = $name_of_POMDP(s.number_of_states, s.names_of_states, a.number_of_actions, a.names_of_actions, o.number_of_observations, o.names_of_observations, [], [], discount, T, O, R)
-    """
-
-    states_def = """
-    states(m::$name_of_POMDP) = 1:m.number_of_states
-    stateindex(m::$name_of_POMDP, i::Int64) = (i <= m.number_of_states) ? i : error("Querying states outside the allowable range.")
-    """
-
-    actions_def = """
-    actions(m::$name_of_POMDP) = 1:m.number_of_actions
-    actionindex(m::$name_of_POMDP, i::Int64) = (i <= m.number_of_actions) ? i : error("Querying input outside the allowable range.")
-    """
-
-    obs_def = """
-    observations(m::$name_of_POMDP) = 1:m.number_of_observations
-    obsindex(m::$name_of_POMDP, i::Int64) = (i <= m.number_of_observations) ? i : error("Querying observations outside the allowable range.")
-    """
-
-    initial_state_def = """
-    function initialstate(m::$name_of_POMDP)
-
-        if !isempty(m.value_of_distribution)
-            return SparseCat(1:m.number_of_states, m.value_of_distribution)
-        else
-            @warn "No available initial condition."
-            return false
-        end
-    end
-    """
-
-    transition_def = """
-    function transition(m::$name_of_POMDP, s::Int64, a::Int64)
-
-        prob_val = [m.T[(s,a,sp)] for sp in 1:m.number_of_states]
-
-        return SparseCat(1:m.number_of_states, prob_val)
-    end
-
-    transition(m::$name_of_POMDP, s::Int64, a::Int64, sp::Int64) = m.T[(s,a,sp)]
-    """
-
-    observation_def = """
-    function observation(m::$name_of_POMDP, s::Int64, a::Int64)
-
-        prob_obs = [m.O[(s, a, obs)] for obs in 1:m.number_of_observations]
-
-        return SparseCat(1:m.number_of_observations, prob_obs)
-    end
-
-    observation(m::$name_of_POMDP, s::Int64, a::Int64, obs::Int64) = m.O[(s,a,obs)]
-    """
-
-    reward_def = """
-    reward(m::$name_of_POMDP, s::Int64, a::Int64, sp::Int64, obs::Int64) = m.R[(s,a,sp,obs)]
-
-    reward(m::$name_of_POMDP, s::Int64, a::Int64, sp::Int64) = m.R[(s,a,sp,1)]
-    
-    reward(m::$name_of_POMDP, s::Int64, a::Int64) = m.R[(s,a,1,1)]
-    """
-
-    discount_def = """
-    discount(m::$name_of_POMDP) = m.discount
-    """
-
-    open(name_of_file, "w") do io
-        println(io, packages_def)
-
-        println(io, struct_def*constructor_def)
-        println(io, states_def*actions_def*obs_def*initial_state_def)
-        println(io, transition_def*observation_def*reward_def)
-        println(io, discount_def)
-    end
-end
-
