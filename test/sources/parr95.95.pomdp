@@ -13,9 +13,6 @@ start exclude: C
 start: uniform
 start exclude: hi-A plus1
 start: hi-A plus1
-start: first-state fourth-state
-start include: third-state
-start exclude: first-state
 
 T : * : I : hi-A 0.5
  T : * : I : lo-A 0.5

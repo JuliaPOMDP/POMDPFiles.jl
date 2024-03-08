@@ -16,7 +16,7 @@ include("types.jl")
 export FilePOMDP, SFilePOMDP, statenames, actionnames, obsnames 
 include("FilePOMDPs.jl")
 
-export read_alpha, read_pomdp, read_pomdp_dir
+export read_alpha, read_pomdp 
 include("reader.jl")
 
 export numericprint, symbolicprint

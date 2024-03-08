@@ -1,7 +1,6 @@
 const REGEX_FLOATING_POINT = r"[-+]?[0-9]*\.?[0-9]+"
 
 ##
-# -- Get rid of initial-state file. Change the way I am processing the initial condition
 # -- Create a type for parsing the reward function 
 # -- Deal with large files 
 
@@ -87,9 +86,6 @@ function read_alpha(filename::AbstractString)
 end
 
 function read_pomdp(filename::String, output::Symbol = :SFilePOMDP)
-    # All files are assumed to be without comments and without empty lines here. I need to create a file that remove comments and empty lines 
-    # I am also assuming the the first line starts with the compulsory parameters. This must also be dealt with before calling the functions below
-
     lines = open(readlines, filename) |> remove_comments_and_white_space
     # Reading the preamble of the file
     test_preamble = check_preamble_fields(lines)
@@ -149,13 +145,11 @@ function read_pomdp(filename::String, output::Symbol = :SFilePOMDP)
     dic_obs = Dict(string(nn) => index for (index, nn) in enumerate(names(observations)))
 
     transition_prob = process_transitions(DynamicTransition("T", number(states), number(actions), ["uniform", "identity"]), dic_states, dic_action, dic_states, files_transition)
-
     obs_prob = process_transitions(ObsTransition("O", number(states), number(actions), number(observations), ["uniform"]), dic_states, dic_action, dic_obs, files_obs)
-
     values_matrix = process_reward_function(number(states), number(actions), number(observations), dic_states, dic_action, dic_obs, files_values)
-    
+
     pomdp_struc = FilePOMDP(number(states), number(actions), number(observations), init_state_info, discount[1], transition_prob, obs_prob, values_matrix)
-    
+
     if output == :FilePOMDP
         return pomdp_struc
     elseif output == :SFilePOMDP
@@ -165,22 +159,6 @@ function read_pomdp(filename::String, output::Symbol = :SFilePOMDP)
     end
 end
 
-############# Setting-up a test dataset ####################
-
-function read_pomdp_dir(dir_path::String)
-    temp_file = walkdir(dir_path)
-
-    file_dir = []
-
-    for general_struc in temp_file
-        for file_names in general_struc[3]
-            push!(file_dir,joinpath(general_struc[1],file_names))
-        end
-    end
-
-    return file_dir
-end
-
 ################ Auxiliary functions ##################
 function test_if_probability(prob::Vector{Float64})
     between_0_1 = all(x -> 0 <= x <= 1, prob)
@@ -188,7 +166,6 @@ function test_if_probability(prob::Vector{Float64})
 end
 
 function remove_comments_and_white_space(file::AbstractVector{String})
-
     processed_file = []
 
     for line in file
@@ -236,17 +213,7 @@ function get_after_colon(line::String)
     end
 end
 
-function read_ordinal_file(file_name::String; state_size = 20)
-    
-    ordinal_names = open(readlines, file_name)[1:state_size]
-    ordinal_names = map(x -> replace(get_after_colon(x), r"[\s+]" => ""), ordinal_names)
-
-    return Dict([ordinal_names[i] => i for i in 1:state_size])
-    
-end
-
 function convert_to_data_structure(field::String, preamble_config::Dict{String,String}) 
-
     entry = preamble_config[field]
     entry = replace(entry, r"\"+" => "")
     
@@ -261,33 +228,7 @@ function convert_to_data_structure(field::String, preamble_config::Dict{String,S
     return param 
 end
 
-function deal_with_partial_numbers(ordinal_dictionary::Dict{String, Int64}, initial_state_param::String)
-
-    init_state = split(initial_state_param)
-    state_size = length(ordinal_dictionary)
-
-    if all(x -> x in keys(ordinal_dictionary), init_state)
-
-        support_of_distribution = Set{Int64}([ordinal_dictionary[key] for key in init_state])  
-        temp = [ordinal_dictionary[key] for key in init_state]
-        value_of_distribution = (1/length(support_of_distribution))*sum(Diagonal(ones(state_size))[:,temp], dims=2)
-
-        return support_of_distribution, value_of_distribution
-    elseif all(x -> tryparse(Int64, x) in values(ordinal_dictionary), init_state)
-
-        init_state = map(x -> parse(Int64, x), init_state)
-        support_of_distribution = Set{Int64}(init_state)
-        value_of_distribution = (1/length(support_of_distribution))*sum(Diagonal(ones(state_size))[:,init_state], dims=2)
-
-        return support_of_distribution, value_of_distribution
-
-    else
-        return nothing, nothing
-    end
-end
-
 function order_of_transition_reward_observation(file_lines::Vector{String}, start_line::Int64) 
-
     key_field = ["O", "T", "R"]
     regex_fields = Vector{String}()
 
@@ -299,15 +240,6 @@ function order_of_transition_reward_observation(file_lines::Vector{String}, star
     sorted_fields = sort(collect(pairs(dict_scanning)), by=x->x[2])
 
     return sorted_fields
-end
-
-function read_ordinal_file(file_name::String; state_size = 20)
-    
-    ordinal_names = open(readlines, file_name)[1:state_size]
-    ordinal_names = map(x -> replace(get_after_colon(x), r"[\s+]" => ""), ordinal_names)
-
-    return Dict([ordinal_names[i] => i for i in 1:state_size])
-    
 end
 
 ######### Auxiliary functions -- PREAMBLE ###############
@@ -364,7 +296,6 @@ function check_preamble_fields(file_lines::Vector{String})
                     temp_match = join(file_lines[range_spec], " ") |> get_after_colon |> strip
                 end
             end
-
         end
 
         organized_preamble[field] = temp_match 
@@ -374,7 +305,6 @@ function check_preamble_fields(file_lines::Vector{String})
 end
 
 function process_preamble(preamble_config::Dict{String, String})
-
     # checking discount syntax => it must be a float number
     entry = preamble_config["discount"]
     test_entry = tryparse(Float64, entry)
@@ -401,35 +331,39 @@ end
 
 ################ Auxiliary functions -- INITIAL DISTRIBUTION ################## 
 
-function process_initial_distribution_start(state_size::Int64, after_colon::String, name_of_states::Dict{String, Int64})
-
+function _process_initial_distribution_start(state_size::Int64, after_colon::String, name_of_states::Dict{String, Int64})
     aux_var = tryparse(Int64, after_colon)
 
-    if !isnothing(aux_var) # testing whether is a number
+    if all(map(x -> !isnothing(tryparse(Int64, x)), split(after_colon))) # testing whether is a number
+        aux_var = map(x -> parse(Int64, x), split(after_colon))  
 
-        if aux_var > state_size
+        if maximum(aux_var) > state_size
             error("Unable to parse the initial state since initial condition is larger than the size of the state space.")
         end
 
         value_of_distribution = Diagonal(ones(Float64, state_size))[:,aux_var]
         support_of_distribution = Set{Int64}(aux_var) 
-        return InitialStateParam{Int64}(state_size, "dirac", support_of_distribution, value_of_distribution) 
-        
-    elseif all(x -> isa(x, Float64) && (x<=1) && (x>=0) , map(x->tryparse(Float64, replace(x, r"[\"+]|[\[+]|[\]+]|[\,+]" => "")), split(after_colon))) # testing whether s₀_param is a probability vector
 
+        if length(aux_var) == 1
+            return InitialStateParam{Int64}(state_size, "dirac", support_of_distribution, vec(value_of_distribution)) 
+        else
+            value_of_distribution = sum(value_of_distribution, dims=2) |> vec
+            value_of_distribution = value_of_distribution/sum(value_of_distribution)
+            return InitialStateParam{Int64}(state_size, "uniform", support_of_distribution, value_of_distribution) 
+        end
+        
+    elseif all(x -> isa(x, Float64) && (x<=1) && (x>=0) , map(x->tryparse(Float64, replace(x, r"[\"+]|[\[+]|[\]+]|[\,+]" => "")), split(after_colon))) # testing whether initial distirbution is a probability vector
         value_of_distribution =  map(x->parse(Float64, replace(x, r"[\"+]|[\[+]|[\]+]|[\,+]" => "")), split(after_colon))
         support_of_distribution =  Set(findall(x -> x > 0, value_of_distribution))
         return InitialStateParam{Int64}(state_size, "general distribution", support_of_distribution, value_of_distribution) 
 
     elseif isequal(replace(after_colon, r"[\"+]|[\s+]" => ""), "uniform") # testing initial state is uniform 
-
         value_of_distribution = (1/state_size)*ones(state_size)
         support_of_distribution = Set{Int64}([i for i in Base.OneTo(state_size)])
 
         return InitialStateParam{Int64}(state_size, "uniform", support_of_distribution, value_of_distribution)
 
-    elseif all(x -> x in keys(name_of_states), split(after_colon))
-
+    elseif all(x -> x in keys(name_of_states), split(after_colon)) # where the initial distribution is passed with names
         init_state = map(x -> name_of_states[x], split(after_colon))
 
         support_of_distribution = Set{Int64}(init_state)
@@ -437,49 +371,26 @@ function process_initial_distribution_start(state_size::Int64, after_colon::Stri
         
         return InitialStateParam{Int64}(state_size, "uniform", support_of_distribution, vec(value_of_distribution)) 
     else
-        
-
-        ordinal_dictionary = read_ordinal_file("initial-state.txt"; state_size) 
-        support_of_distribution, value_of_distribution = deal_with_partial_numbers(ordinal_dictionary, after_colon)
-
-        if !isnothing(support_of_distribution) 
-            return InitialStateParam{Int64}(state_size, "uniform", support_of_distribution, vec(value_of_distribution)) 
-        else
-            error("Unable to parse the initial distribution.")
-        end
+        # println(split(after_colon))
+        error("Invalid syntax for the initial condition.")
     end
 
 
 end
 
-function process_initial_distribution_start_include(state_initial_param::InitialStateParam, after_colon::String, name_of_states::Dict{String, Int64})
-
+function _process_initial_distribution_start_include(state_initial_param::InitialStateParam, after_colon::String, name_of_states::Dict{String, Int64})
     init_state = split(after_colon)
-    state_size = state_initial_param.size_of_states
+    state_size = number(state_initial_param)
     
-    ordinal_dictionary = read_ordinal_file("initial-state.txt"; state_size) 
-
-
     if all(x -> tryparse(Int64, x) in 1:state_size, init_state) 
-
         adding_set = Set{Int64}(map(x -> parse(Int64, x), init_state)) 
 
         support_of_distribution = union(adding_set, state_initial_param.support_of_distribution) 
         value_of_distribution = (1/length(support_of_distribution))*sum(Diagonal(ones(state_size))[:,collect(support_of_distribution)], dims=2)
 
         return InitialStateParam{Int64}(state_size, "uniform", support_of_distribution, vec(value_of_distribution)) 
-    elseif all(x -> x in keys(ordinal_dictionary), init_state)
-
-        init_state = map(x -> ordinal_dictionary[x], init_state)
-        adding_set = Set{Int64}(init_state)
-        
-        support_of_distribution = union(adding_set, state_initial_param.support_of_distribution) 
-        value_of_distribution = (1/length(support_of_distribution))*sum(Diagonal(ones(state_size))[:,collect(support_of_distribution)], dims=2)
-
-        return InitialStateParam{Int64}(state_size, "uniform", support_of_distribution, vec(value_of_distribution)) 
 
     elseif all(x -> x in keys(name_of_states), init_state)
-
         init_state = map(x -> name_of_states[x], init_state)
         adding_set = Set{Int64}(init_state)
         
@@ -491,36 +402,19 @@ function process_initial_distribution_start_include(state_initial_param::Initial
     else
         error("Unable to parse the start include line.")
     end
-
-    return
-
 end
 
-function process_initial_distribution_start_exclude(state_initial_param::InitialStateParam, after_colon::String, name_of_states::Dict{String, Int64})
-
+function _process_initial_distribution_start_exclude(state_initial_param::InitialStateParam, after_colon::String, name_of_states::Dict{String, Int64})
     init_state = split(after_colon)
     state_size = state_initial_param.size_of_states
     
-    ordinal_dictionary = read_ordinal_file("initial-state.txt"; state_size) 
-
     if all(x -> isa(tryparse(Int64, x), Int64), init_state) 
-
         excluding_set = Set{Int64}(map(x -> parse(Int64, x), init_state)) 
 
         support_of_distribution = setdiff(state_initial_param.support_of_distribution, excluding_set)
         value_of_distribution = (1/length(support_of_distribution))*sum(Diagonal(ones(state_size))[:,collect(support_of_distribution)], dims=2)
 
-    elseif all(x -> x in keys(ordinal_dictionary), init_state)
-
-        init_state = map(x -> ordinal_dictionary[x], init_state)
-        excluding_set = Set{Int64}(init_state)
-        
-        support_of_distribution = setdiff(state_initial_param.support_of_distribution, excluding_set)
-        value_of_distribution = (1/length(support_of_distribution))*sum(Diagonal(ones(state_size))[:,collect(support_of_distribution)], dims=2)    
-
     elseif all(x -> x in keys(name_of_states), init_state)
-
-
         init_state = map(x -> name_of_states[x], init_state)
         excluding_set = Set{Int64}(init_state)
 
@@ -535,41 +429,33 @@ function process_initial_distribution_start_exclude(state_initial_param::Initial
 end
 
 function process_initial_distribution(number_of_states::Int64, name_of_states::Dict{String, Int64}, initial_state_ocurrences::Vector{String})
-    # According to the grammar this can either be a number, a probability distribution over states, or strings (uniform or ordinal description of states)
-
+    # According to the grammar this can either be a number, a probability distribution over states, or strings (uniform or states' names)
     initial_state_param = InitialStateParam(number_of_states)
     
     for line in initial_state_ocurrences
-
         type_init_state = get_before_colon(line)
         param_init = get_after_colon(line) 
        
         if isequal(type_init_state, "start")
-            
-            initial_state_param = process_initial_distribution_start(number_of_states, param_init, name_of_states)
+            initial_state_param = _process_initial_distribution_start(number_of_states, param_init, name_of_states)
 
         elseif isequal(type_init_state, "start include")
-
-            initial_state_param = process_initial_distribution_start_include(initial_state_param, param_init, name_of_states)
+            initial_state_param = _process_initial_distribution_start_include(initial_state_param, param_init, name_of_states)
             
         elseif isequal(type_init_state, "start exclude")
-
-            initial_state_param = process_initial_distribution_start_exclude(initial_state_param, param_init, name_of_states)
+            initial_state_param = _process_initial_distribution_start_exclude(initial_state_param, param_init, name_of_states)
         else
             error("Unable to parse the initial condition.")
         end
     end
 
     return initial_state_param
-
 end
 
 ################ Auxiliary functions -- TRANSITION PROBABILITY ################## 
 
 function turn_into_number!(parsed_line::Vector{String}, name_of_states::Dict{String, Int64}, name_of_actions::Dict{String, Int64}, name_of_states_obs::Dict{String, Int64}, indices::Vector{Int64})
-
     # the index parameter serves to select whether or not the entry is allowed to be substituted. This is essential to deal with the wild card
-
     if !isempty(name_of_states)
         if 3 in indices
             parsed_line[3] = string(name_of_states[parsed_line[3]])  
@@ -674,7 +560,6 @@ end
 line(ℓ::SizeEqualTwo) = ℓ.parsed_line
 
 function update_prob!(indices::NTuple{3, Int64}, prob::Float64, prob_indices::Vector{NTuple{3, Int64}}, prob_values::Vector{Float64})
-     
     push!(prob_indices, indices)
     push!(prob_values, prob)
 end
@@ -701,7 +586,6 @@ function update_prob!(indices::NTuple{2, Int64}, prob::Union{ProbObs, ProbStates
 end
 
 function update_prob!(input::Tuple{Int64}, prob::Float64, prob_indices::Vector{NTuple{3, Int64}}, prob_values::Vector{Float64}, dim1::Int64, dim2::Int64)
-
     for current_state in 1:dim1
         for next_state in 1:dim2
             ii = (current_state, input..., next_state)
@@ -712,7 +596,6 @@ function update_prob!(input::Tuple{Int64}, prob::Float64, prob_indices::Vector{N
 end
     
 function update_prob!(input::Tuple{Int64}, prob::Int64, prob_indices::Vector{NTuple{3, Int64}}, prob_values::Vector{Float64}, dim1::Int64, dim2::Int64)
-
     for current_state in 1:dim1
         ii = (current_state, input..., current_state)
         push!(prob_indices, ii)
@@ -721,7 +604,6 @@ function update_prob!(input::Tuple{Int64}, prob::Int64, prob_indices::Vector{NTu
 end
 
 function update_prob!(input::Tuple{Int64}, prob::AbstractMatrix{Float64}, prob_indices::Vector{NTuple{3, Int64}}, prob_values::Vector{Float64}, dim1::Int64, dim2::Int64)
-
     for current_state in 1:dim1
         @assert test_if_probability(prob[current_state,:])
         for next_state in 1:dim2
@@ -733,7 +615,6 @@ function update_prob!(input::Tuple{Int64}, prob::AbstractMatrix{Float64}, prob_i
 end
 
 function process_line!(ℓ::SizeEqualFour, prob::Float64, name_of_states::Dict{String, Int64}, name_of_actions::Dict{String, Int64}, name_of_states_obs::Dict{String, Int64}, number_wild_cards::Int64, prob_indices::Vector{NTuple{3, Int64}}, prob_values::Vector{Float64})
-    
     parsed_line = line(ℓ)
 
     if number_wild_cards == 0 
@@ -768,7 +649,6 @@ function process_line!(ℓ::SizeEqualFour, prob::Float64, name_of_states::Dict{S
             error("Unable to parse the position of the wild card")
         end
     elseif number_wild_cards == 2 # I HAVE CHECKED THIS FUNCTIONS UP TO THIS POINT
-
         if isequal(parsed_line[4], "*")
             if isequal(parsed_line[3], "*")
                 turn_into_number!(parsed_line, name_of_states, name_of_actions, name_of_states_obs, [2]) 
@@ -806,9 +686,7 @@ function process_line!(ℓ::SizeEqualFour, prob::Float64, name_of_states::Dict{S
 end
 
 function process_line!(ℓ::SizeEqualThree, prob::Union{ProbObs, ProbStates}, name_of_states::Dict{String, Int64}, name_of_actions::Dict{String, Int64}, name_of_states_obs::Dict{String, Int64}, number_wild_cards::Int64, prob_indices::Vector{NTuple{3, Int64}}, prob_values::Vector{Float64}) 
-
     parsed_line = line(ℓ)
-
 
     if number_wild_cards == 0 
         turn_into_number!(parsed_line, name_of_states, name_of_actions, name_of_states_obs, [2,3]) # I may have to chande this function. Last parameter may not be needed
@@ -817,7 +695,6 @@ function process_line!(ℓ::SizeEqualThree, prob::Union{ProbObs, ProbStates}, na
         current_state = parse(Int64, parsed_line[3])
 
     elseif number_wild_cards == 1
-        
         if isequal(parsed_line[2], "*")
             turn_into_number!(parsed_line, name_of_states, name_of_actions, name_of_states_obs, [3])
 
@@ -836,6 +713,7 @@ function process_line!(ℓ::SizeEqualThree, prob::Union{ProbObs, ProbStates}, na
     elseif number_wild_cards == 2
         current_state = 0
         input = 0
+
     else
         error("Unable to parse this line")
     end
@@ -843,7 +721,6 @@ function process_line!(ℓ::SizeEqualThree, prob::Union{ProbObs, ProbStates}, na
 end
 
 function process_line!(ℓ::SizeEqualTwo, prob::Union{ProbObs{T}, ProbStates{T}}, name_of_states::Dict{String, Int64}, name_of_actions::Dict{String, Int64}, name_of_states_obs::Dict{String, Int64}, prob_indices::Vector{NTuple{3, Int64}}, prob_values::Vector{Float64}) where T
-
     parsed_line = line(ℓ)
 
     if isequal(parsed_line[2], "*")
@@ -860,20 +737,15 @@ end
 ##################################
 
 function process_transitions(μ::TypeOfTransition, name_of_states::Dict{String,Int64}, name_of_actions::Dict{String,Int64}, name_of_states_obs::Dict{String, Int64}, file::Vector{String})
-
     number_of_states = numstates(μ)
     number_of_observations = numobs(μ)
-
-    # println(number_of_states, " ", number_of_observations)
 
     prob_indices = Vector{Tuple{Int64, Int64, Int64}}()
     prob_values = Vector{Float64}()
 
     fields_admissible = allowablefields(μ)
 
-
     for (index, lines) in enumerate(file)
-
         type_of_trans = precolon(μ)
 
         if isequal(get_before_colon(lines) |> strip, type_of_trans)
@@ -882,7 +754,6 @@ function process_transitions(μ::TypeOfTransition, name_of_states::Dict{String,I
             if length(parsed_line) == 4 
                 # T: <action> : <start-state> : <next-state> or
                 # O: <action> : <start-state> : <next-state>
-
                 checking_fourth_param = split(parsed_line[4], " ", limit=2) # variable used to check whether the parameter is in the next line
 
                 # The code below puts the parameter (if any) within the a Vector{String} structure
@@ -894,7 +765,6 @@ function process_transitions(μ::TypeOfTransition, name_of_states::Dict{String,I
                 number_wild_cards = count(x -> isequal(x, "*"), parsed_line)
 
                 if length(checking_fourth_param) == 1 # parameter passed in the next line
-
                     if !isnothing(tryparse(Float64, file[index + 1]))
                         prob = parse(Float64, file[index + 1])
                     else
@@ -920,14 +790,11 @@ function process_transitions(μ::TypeOfTransition, name_of_states::Dict{String,I
             elseif length(parsed_line) == 3
                 # T: <action> : <start-state> or
                 # O: <action> : <start-state>
-
                 checking_third_param = split(parsed_line[3], " ", limit=2)
                 number_wild_cards = count(x -> isequal(x, "*"), parsed_line)
 
                 if length(checking_third_param) == 1 # The transition probability will be on the next line
-
                     next_line =  string.(split(file[index + 1])) 
-
 
                     if all(x -> !isnothing(tryparse(Float64, x)), next_line)
                         prob = map(x -> parse(Float64, x), next_line)
@@ -963,7 +830,6 @@ function process_transitions(μ::TypeOfTransition, name_of_states::Dict{String,I
             elseif length(parsed_line) == 2 
             # T : <action> or
             # O : <action>
-
                 next_line = file[index + 1] |> strip
 
                 if isequal(next_line, "uniform")
@@ -983,8 +849,7 @@ function process_transitions(μ::TypeOfTransition, name_of_states::Dict{String,I
                         prob = hcat([parse.(Float64, split(row)) for row in matrix_lines]...)' 
                     end
                 end
-                # println(generate_prob(typeof(μ)(), prob, number_of_states, number_of_observations))
-
+                
                 process_line!(SizeEqualTwo(parsed_line), generate_prob(typeof(μ)(), prob, number_of_states, number_of_observations), name_of_states, name_of_actions, name_of_states_obs, prob_indices, prob_values)
             else
                 error("Error while parsing the file.")
@@ -993,7 +858,6 @@ function process_transitions(μ::TypeOfTransition, name_of_states::Dict{String,I
     end
 
     @assert length(prob_indices) == length(prob_values) "Error while constructing the transition probability. Keys and values must have the same size."
-
     parsed_prob = OrderedDict(key => prob_values[index] for (index, key) in enumerate(prob_indices))
 
     return savetrans(μ, parsed_prob) 
@@ -1003,7 +867,6 @@ end
 
 function turn_into_number_values!(parsed_line::Vector{String}, name_of_states::Dict{String, Int64}, name_of_actions::Dict{String, Int64}, name_of_observations::Dict{String, Int64}, indices::Vector{Int64})
     # If we define numbers for states this function may not work well
-
     if !isempty(name_of_states)
         if 3 in indices
             if isnothing(tryparse(Int64, parsed_line[3]))
@@ -1035,7 +898,6 @@ function turn_into_number_values!(parsed_line::Vector{String}, name_of_states::D
 end
 
 function process_reward_function(number_of_states::Int64, number_of_actions::Int64, number_of_observations::Int64, name_of_states::Dict{String,Int64}, name_of_actions::Dict{String,Int64}, name_of_observations::Dict{String, Int64}, files_values::Vector{String})
-
     # values_dic = Dict((states, actions, next_state, observations) => 0. for states in 1:number_of_states, actions in 1:number_of_actions, next_state in 1:number_of_states, observations in 1:number_of_observations)
     reward_index = Vector{NTuple{4, Int64}}()
     reward_values = Vector{Float64}()
@@ -1145,7 +1007,6 @@ function process_reward_function(number_of_states::Int64, number_of_actions::Int
                         push!(reward_values, values)
                     end
                 elseif number_wild_cards == 2
-
                     if isequal(parsed_line[2], "*") && isequal(parsed_line[3], "*")
                         if length(parsed_line) == 6
                             values = parse(Float64, parsed_line[6])
@@ -1166,7 +1027,6 @@ function process_reward_function(number_of_states::Int64, number_of_actions::Int
                     end
                     
                     if isequal(parsed_line[2], "*") && isequal(parsed_line[4], "*")
-
                         if length(parsed_line) == 6
                             values = parse(Float64, parsed_line[6])
                         else
@@ -1186,7 +1046,6 @@ function process_reward_function(number_of_states::Int64, number_of_actions::Int
                     end
                     
                     if isequal(parsed_line[2], "*") && isequal(parsed_line[5], "*")
-
                         if length(parsed_line) == 6
                             values = parse(Float64, parsed_line[6])
                         else
@@ -1207,7 +1066,6 @@ function process_reward_function(number_of_states::Int64, number_of_actions::Int
                     end
                     
                     if isequal(parsed_line[3], "*") && isequal(parsed_line[4], "*")
-
                         if length(parsed_line) == 6
                             values = parse(Float64, parsed_line[6])
                         else
@@ -1227,7 +1085,6 @@ function process_reward_function(number_of_states::Int64, number_of_actions::Int
                     end
 
                     if isequal(parsed_line[3], "*") && isequal(parsed_line[5], "*")
-
                         if length(parsed_line) == 6
                             values = parse(Float64, parsed_line[6])
                         else
@@ -1264,7 +1121,6 @@ function process_reward_function(number_of_states::Int64, number_of_actions::Int
                         push!(reward_values, values)
                     end
                 elseif number_wild_cards == 3
-
                     parsed_line = filter(x->!isempty(x), parsed_line)
 
                     if length(parsed_line) == 6
@@ -1322,7 +1178,6 @@ function process_reward_function(number_of_states::Int64, number_of_actions::Int
                         push!(reward_values, values)
                     end
                 elseif number_wild_cards == 4
-
                     if length(parsed_line) == 6
                         values = parse(Float64, parsed_line[6])
                     else
@@ -1337,15 +1192,12 @@ function process_reward_function(number_of_states::Int64, number_of_actions::Int
                     
                     push!(reward_index, (current_state, input, next_state, obs))
                     push!(reward_values, values)
-
                 end
-
             end
         end
     end
 
     @assert length(reward_index) == length(reward_values) "Error while constructing the transition probability. Keys and values must have the same size."
-
     value_prob = OrderedDict(key => reward_values[index] for (index, key) in enumerate(reward_index))
 
     return RewardValue{Int64}(value_prob, number_of_states, number_of_actions, number_of_observations)
@@ -1354,7 +1206,6 @@ end
 ############ GENERATING JULIA CODE WITH THE INFORMATION READ ########################
 
 function generate_julia_pomdp_struct(name_of_file::String, name_of_POMDP::String) 
-
     packages_def = """
 
     using POMDPs, Distributions, POMDPModelTools
@@ -1383,32 +1234,27 @@ function generate_julia_pomdp_struct(name_of_file::String, name_of_POMDP::String
     """
 
     constructor_def = """
-
     $name_of_POMDP(s::StateParam, a::ActionsParam, o::ObservationParam, initial_state::InitialStateParam, discount::Float64, T::TransitionProb, O::ObservationProb, R::RewardLookUp)= $name_of_POMDP(s.number_of_states, s.names_of_states, a.number_of_actions, a.names_of_actions, o.number_of_observations, o.names_of_observations, initial_state.support_of_distribution, initial_state.value_of_distribution, discount, T, O, R)
 
     $name_of_POMDP(s::StateParam, a::ActionsParam, o::ObservationParam, discount::Float64, T::TransitionProb, O::ObservationProb, R::RewardLookUp) = $name_of_POMDP(s.number_of_states, s.names_of_states, a.number_of_actions, a.names_of_actions, o.number_of_observations, o.names_of_observations, [], [], discount, T, O, R)
     """
 
     states_def = """
-
     states(m::$name_of_POMDP) = 1:m.number_of_states
     stateindex(m::$name_of_POMDP, i::Int64) = (i <= m.number_of_states) ? i : error("Querying states outside the allowable range.")
     """
 
     actions_def = """
-
     actions(m::$name_of_POMDP) = 1:m.number_of_actions
     actionindex(m::$name_of_POMDP, i::Int64) = (i <= m.number_of_actions) ? i : error("Querying input outside the allowable range.")
     """
 
     obs_def = """
-
     observations(m::$name_of_POMDP) = 1:m.number_of_observations
     obsindex(m::$name_of_POMDP, i::Int64) = (i <= m.number_of_observations) ? i : error("Querying observations outside the allowable range.")
     """
 
     initial_state_def = """
-
     function initialstate(m::$name_of_POMDP)
 
         if !isempty(m.value_of_distribution)
@@ -1421,7 +1267,6 @@ function generate_julia_pomdp_struct(name_of_file::String, name_of_POMDP::String
     """
 
     transition_def = """
-
     function transition(m::$name_of_POMDP, s::Int64, a::Int64)
 
         prob_val = [m.T[(s,a,sp)] for sp in 1:m.number_of_states]
@@ -1433,7 +1278,6 @@ function generate_julia_pomdp_struct(name_of_file::String, name_of_POMDP::String
     """
 
     observation_def = """
-
     function observation(m::$name_of_POMDP, s::Int64, a::Int64)
 
         prob_obs = [m.O[(s, a, obs)] for obs in 1:m.number_of_observations]
@@ -1445,7 +1289,6 @@ function generate_julia_pomdp_struct(name_of_file::String, name_of_POMDP::String
     """
 
     reward_def = """
-
     reward(m::$name_of_POMDP, s::Int64, a::Int64, sp::Int64, obs::Int64) = m.R[(s,a,sp,obs)]
 
     reward(m::$name_of_POMDP, s::Int64, a::Int64, sp::Int64) = m.R[(s,a,sp,1)]
@@ -1454,20 +1297,16 @@ function generate_julia_pomdp_struct(name_of_file::String, name_of_POMDP::String
     """
 
     discount_def = """
-    
     discount(m::$name_of_POMDP) = m.discount
     """
 
     open(name_of_file, "w") do io
-
         println(io, packages_def)
 
         println(io, struct_def*constructor_def)
         println(io, states_def*actions_def*obs_def*initial_state_def)
         println(io, transition_def*observation_def*reward_def)
-
         println(io, discount_def)
     end
-    
 end
 

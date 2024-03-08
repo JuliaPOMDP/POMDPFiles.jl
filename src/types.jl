@@ -51,7 +51,6 @@ Base.names(o::ObservationParam) = o.names_of_observations
 number(o::ObservationParam) = o.number_of_observations
 
 struct InitialStateParam{T}
-
     size_of_states::T
     type_of_distribution::String
     support_of_distribution::Set{T}

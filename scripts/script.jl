@@ -2,6 +2,22 @@
 using POMDPFiles, POMDPModels, OrderedCollections
 using POMDPs
 
+############# Setting-up a test dataset ####################
+function read_pomdp_dir(dir_path::String)
+    temp_file = walkdir(dir_path)
+    file_dir = []
+
+    for general_struc in temp_file
+        for file_names in general_struc[3]
+            push!(file_dir,joinpath(general_struc[1],file_names))
+        end
+    end
+
+    return file_dir
+end
+
+
+
 dir_path = "./../test/sources/"
 all_files_path = read_pomdp_dir(dir_path)
 
@@ -20,14 +36,4 @@ for file_path in all_files_path
 
         # numericprint(target_file, pomdp_read)
     end
-
 end
-
-
-
-
-
-
-
-
-
