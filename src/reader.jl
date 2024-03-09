@@ -1,7 +1,6 @@
 const REGEX_FLOATING_POINT = r"[-+]?[0-9]*\.?[0-9]+"
 
 ##
-# -- Create a type for parsing the reward function 
 # -- Deal with large files 
 
 """
@@ -86,7 +85,7 @@ function read_alpha(filename::AbstractString)
 end
 
 function read_pomdp(filename::String, output::Symbol = :SFilePOMDP)
-    lines = open(readlines, filename) |> remove_comments_and_white_space
+    lines = open(readlines, filename) |> remove_comments_and_white_space 
     # Reading the preamble of the file
     test_preamble = check_preamble_fields(lines)
 
@@ -94,7 +93,7 @@ function read_pomdp(filename::String, output::Symbol = :SFilePOMDP)
     
     ss_dic = Dict{String, Int64}(nn => index for (index, nn) in enumerate(string.(states.names_of_states)))
 
-    # Processing the initial distribution
+    # # Processing the initial distribution
     regex_init_cond = r"\s*start include\s*:|\s*start exclude\s*:|\s*start\s*:"
 
     init_state_lines = findall(startswith.(lines, regex_init_cond)) 
@@ -146,7 +145,6 @@ function read_pomdp(filename::String, output::Symbol = :SFilePOMDP)
 
     transition_prob = process_transitions(DynamicTransition("T", number(states), number(actions), ["uniform", "identity"]), dic_states, dic_action, dic_states, files_transition)
     obs_prob = process_transitions(ObsTransition("O", number(states), number(actions), number(observations), ["uniform"]), dic_states, dic_action, dic_obs, files_obs)
-    # values_matrix = process_reward_function(number(states), number(actions), number(observations), dic_states, dic_action, dic_obs, files_values)
     values_matrix = process_transitions(ValueTransition("R", number(states), number(actions), number(observations), []), dic_states, dic_action, dic_obs, files_values)
 
     pomdp_struc = FilePOMDP(number(states), number(actions), number(observations), init_state_info, discount[1], transition_prob, obs_prob, values_matrix)
@@ -179,10 +177,18 @@ function remove_comments_and_white_space(file::AbstractVector{String})
 
     admissible_strings = ["discount", "values", "states", "actions", "observations", "start", "start include", "start exclude"]
 
+    # length(processed_file) |> println
+    # println(enumerate(processed_file))
+
     for (index, line) in enumerate(processed_file)
         tt_line = string(line)
-        before_colon = get_before_colon(tt_line) |> strip
-        after_colon = get_after_colon(tt_line) |> strip
+
+        before_colon = get_before_colon(tt_line) |> strip 
+        # println("Hello")
+        # println(before_colon)
+        
+        # |> strip
+        after_colon = get_after_colon(tt_line) |> strip 
 
         # This part of the code is joining in the preamble to facilitate parsing. Otherwise we would have to add code to deal with the case where the parameters are passed in the next line
         if (before_colon in admissible_strings) && isempty(after_colon)
@@ -203,14 +209,41 @@ function get_before_colon(line::String)
 end
 
 function get_after_colon(line::String)
-    regex_after_colon = r":(.)*$"
+    # println(length(line))
+    if length(line) > 5000 # breaking in chunks of 5000
+        number_chunks = div(length(line), 5000)
+        # println(number_chunks)
+        temp = "" 
 
-    search_pattern = match(regex_after_colon, line)
-
-    if !isnothing(search_pattern)
-        return replace(search_pattern.match, r":+" => "")
+        for ii in 1:number_chunks
+            pre_process = ii < number_chunks ? _get_after_colon(line[(ii-1)*5000 + 1:ii*5000], ii) : _get_after_colon(line[((ii-1)*5000 +1):length(line)], ii)
+            # println(pre_process)
+            # println(typeof(pre_process))
+            if !isequal(pre_process, "none-found")
+                temp = temp*pre_process
+            else
+                error("Error while parsing the file.")
+            end
+        end
+        return temp
     else
-        return "none-found"
+        return _get_after_colon(line, 1)    
+    end
+
+end
+
+function _get_after_colon(line::String, ii::Int64)
+    if ii == 1
+        regex_after_colon = r":(.)*$"
+        search_pattern = match(regex_after_colon, line)
+
+        if !isnothing(search_pattern)
+            return replace(search_pattern.match, r":+" => "")
+        else
+            return "none-found"
+        end
+    else
+        return line
     end
 end
 
@@ -746,7 +779,6 @@ function update_prob!(input::Tuple{Int64}, prob::AbstractMatrix{Float64}, prob_i
     end
 end
 
-
 function process_line!(ℓ::SizeEqualFive{T}, prob::Float64, name_of_states::Dict{String, Int64}, name_of_actions::Dict{String, Int64}, name_of_observations::Dict{String, Int64}, number_wild_cards::Int64, prob_indices::Vector{NTuple{4, Int64}}, prob_values::Vector{Float64}) where T <: ValueTransition
     if number_wild_cards == 0
         turn_into_number!(ℓ, name_of_states, name_of_actions, name_of_observations, [2,3,4,5])
@@ -1179,348 +1211,4 @@ function process_transitions(μ::TypeOfTransition, name_of_states::Dict{String,I
     parsed_prob = OrderedDict(key => prob_values[index] for (index, key) in enumerate(prob_indices))
 
     return savetrans(μ, parsed_prob) 
-end
-
-
-
-
-
-
-
-################ Auxiliary functions -- REWARD ################## 
-# function turn_into_number_values!(parsed_line::Vector{String}, name_of_states::Dict{String, Int64}, name_of_actions::Dict{String, Int64}, name_of_observations::Dict{String, Int64}, indices::Vector{Int64})
-#     # If we define numbers for states this function may not work well
-#     if !isempty(name_of_states)
-#         if 3 in indices
-#             parsed_line[3] = string(name_of_states[parsed_line[3]])
-#         end
-#     end
-#         if 4 in indices
-#             if isnothing(tryparse(Int64, parsed_line[4]))
-#                 parsed_line[4] = string(name_of_states[parsed_line[4]])
-#             end
-#         end
-#     end
-
-#     if !isempty(name_of_observations)
-#         if 5 in indices
-#             if isnothing(tryparse(Int64, parsed_line[5]))
-#                 parsed_line[5] = string(name_of_observations[parsed_line[5]]) 
-#             end
-#         end
-#     end
-    
-#     if !isempty(name_of_actions)
-#         if 2 in indices
-#             if isnothing(tryparse(Int64, parsed_line[2]))
-#                 parsed_line[2] = string(name_of_actions[parsed_line[2]])
-#             end
-#         end
-#     end
-# end
-
-function process_reward_function(number_of_states::Int64, number_of_actions::Int64, number_of_observations::Int64, name_of_states::Dict{String,Int64}, name_of_actions::Dict{String,Int64}, name_of_observations::Dict{String, Int64}, files_values::Vector{String})
-    # values_dic = Dict((states, actions, next_state, observations) => 0. for states in 1:number_of_states, actions in 1:number_of_actions, next_state in 1:number_of_states, observations in 1:number_of_observations)
-    reward_index = Vector{NTuple{4, Int64}}()
-    reward_values = Vector{Float64}()
-
-    for (index, lines) in enumerate(files_values)
-        if isequal(get_before_colon(lines) |> strip, "R")
-            parsed_line = string.(strip.(split(lines, ':')))
-            # print(parsed_line, "\n\n")
-
-            if length(parsed_line) == 5
-                temp_str = split(parsed_line[5], " ")
-                parsed_line[5] = ""
-                parsed_line= filter(x->!isempty(x), parsed_line)
-                map(x->push!(parsed_line, x), temp_str)
-
-                number_wild_cards = count(x -> isequal(x, "*"), parsed_line)
-
-                if number_wild_cards == 0
-                    turn_into_number_values!(parsed_line, name_of_states, name_of_actions, name_of_observations, [2,3,4,5])
-
-                    current_state = parse(Int64, parsed_line[3])
-                    input = parse(Int64, parsed_line[2])
-                    next_state = parse(Int64, parsed_line[4])
-                    obs = parse(Int64, parsed_line[5])
-
-                    if length(parsed_line) == 6
-                        values = parse(Float64, parsed_line[6])
-                    else
-                        @warn "I am setting the rewards/cost to be zero"
-                        values = 0.
-                    end
-                    
-                    push!(reward_index, (current_state, input, next_state, obs))
-                    push!(reward_values, values)
-                    
-                elseif number_wild_cards == 1
-                    if isequal(parsed_line[2], "*") 
-                        turn_into_number_values!(parsed_line, name_of_states, name_of_actions, name_of_observations, [3,4,5])
-
-                        current_state = parse(Int64, parsed_line[3])
-                        next_state = parse(Int64, parsed_line[4])
-                        obs = parse(Int64, parsed_line[5])
-                        input = 0
-
-                        if length(parsed_line) == 6
-                            values = parse(Float64, parsed_line[6])
-                        else
-                            @warn "I am setting the rewards/cost to be zero \n\n"
-                            values = 0.
-                        end
-                        
-                        push!(reward_index, (current_state, input, next_state, obs))
-                        push!(reward_values, values)
-
-                    elseif isequal(parsed_line[3], "*")
-                        turn_into_number_values!(parsed_line, name_of_states, name_of_actions, name_of_observations, [2,4,5])
-
-                        input = parse(Int64, parsed_line[2])
-                        current_state = 0
-                        next_state = parse(Int64, parsed_line[4])
-                        obs = parse(Int64, parsed_line[5])
-
-                        if length(parsed_line) == 6
-                            values = parse(Float64, parsed_line[6])
-                        else
-                            @warn "I am setting the rewards/cost to be zero \n\n"
-                            values = 0.
-                        end
-                        
-                        push!(reward_index, (current_state, input, next_state, obs))
-                        push!(reward_values, values)
-                    
-                    elseif isequal(parsed_line[4], "*")
-                        turn_into_number_values!(parsed_line, name_of_states, name_of_actions, name_of_observations, [2,3,5])
-
-                        input = parse(Int64, parsed_line[2])
-                        current_state = parse(Int64, parsed_line[3])
-                        next_state = 0
-                        obs = parse(Int64, parsed_line[5])
-
-                        if length(parsed_line) == 6
-                            values = parse(Float64, parsed_line[6])
-                        else
-                            @warn "I am setting the rewards/cost to be zero \n\n"
-                            values = 0.
-                        end
-                        
-                        push!(reward_index, (current_state, input, next_state, obs))
-                        push!(reward_values, values)
-                    
-                    elseif isequal(parsed_line[5], "*")
-                        turn_into_number_values!(parsed_line, name_of_states, name_of_actions, name_of_observations, [2,3,4])
-
-                        input = parse(Int64, parsed_line[2])
-                        current_state = parse(Int64, parsed_line[3])
-                        next_state = parse(Int64, parsed_line[4])
-                        obs = 0
-
-                        if length(parsed_line) == 6
-                            values = parse(Float64, parsed_line[6])
-                        else
-                            @warn "I am setting the rewards/cost to be zero \n\n"
-                            values = 0.
-                        end
-                        
-                        push!(reward_index, (current_state, input, next_state, obs))
-                        push!(reward_values, values)
-                    end
-                elseif number_wild_cards == 2
-                    if isequal(parsed_line[2], "*") && isequal(parsed_line[3], "*")
-                        if length(parsed_line) == 6
-                            values = parse(Float64, parsed_line[6])
-                        else
-                            @warn "I am setting the rewards/cost to be zero \n\n"
-                            values = 0.
-                        end
-
-                        turn_into_number_values!(parsed_line, name_of_states, name_of_actions, name_of_observations, [4, 5])
-
-                        input = 0
-                        current_state = 0
-                        next_state = parse(Int64, parsed_line[4])
-                        obs = parse(Int64, parsed_line[5]) 
-                        
-                        push!(reward_index, (current_state, input, next_state, obs))
-                        push!(reward_values, values)
-                    end
-                    
-                    if isequal(parsed_line[2], "*") && isequal(parsed_line[4], "*")
-                        if length(parsed_line) == 6
-                            values = parse(Float64, parsed_line[6])
-                        else
-                            @warn "I am setting the rewards/cost to be zero \n\n"
-                            values = 0.
-                        end
-                    
-                        turn_into_number_values!(parsed_line, name_of_states, name_of_actions, name_of_observations, [3, 5])
-
-                        current_state = parse(Int64, parsed_line[3])
-                        obs = parse(Int64, parsed_line[5]) 
-                        input = 0
-                        next_state = 0
-                        
-                        push!(reward_index, (current_state, input, next_state, obs))
-                        push!(reward_values, values)
-                    end
-                    
-                    if isequal(parsed_line[2], "*") && isequal(parsed_line[5], "*")
-                        if length(parsed_line) == 6
-                            values = parse(Float64, parsed_line[6])
-                        else
-                            # I NEED TO ALLOW REWARDS TO BE DEFINED IN THE NEXT LINE. Also check transition and observation probability
-                            @warn "I am setting the rewards/cost to be zero \n\n"
-                            values = 0.
-                        end
-
-                        turn_into_number_values!(parsed_line, name_of_states, name_of_actions, name_of_observations, [3, 4])
-
-                        current_state = parse(Int64, parsed_line[3])
-                        input = 0
-                        obs = 0
-                        next_state = parse(Int64, parsed_line[4]) 
-                        
-                        push!(reward_index, (current_state, input, next_state, obs))
-                        push!(reward_values, values)
-                    end
-                    
-                    if isequal(parsed_line[3], "*") && isequal(parsed_line[4], "*")
-                        if length(parsed_line) == 6
-                            values = parse(Float64, parsed_line[6])
-                        else
-                            @warn "I am setting the rewards/cost to be zero \n\n"
-                            values = 0.
-                        end
-                        turn_into_number_values!(parsed_line, name_of_states, name_of_actions, name_of_observations, [2, 5])
-
-                        input = parse(Int64, parsed_line[2])
-                        current_state = 0
-                        next_state = 0
-                        obs = parse(Int64, parsed_line[5]) 
-                        
-                        push!(reward_index, (current_state, input, next_state, obs))
-                        push!(reward_values, values)
-                        
-                    end
-
-                    if isequal(parsed_line[3], "*") && isequal(parsed_line[5], "*")
-                        if length(parsed_line) == 6
-                            values = parse(Float64, parsed_line[6])
-                        else
-                            @warn "I am setting the rewards/cost to be zero \n\n"
-                            values = 0.
-                        end
-                        turn_into_number_values!(parsed_line, name_of_states, name_of_actions, name_of_observations, [2, 4])
-
-                        input = parse(Int64, parsed_line[2])
-                        current_state = 0
-                        obs = 0
-                        next_state = parse(Int64, parsed_line[4]) 
-                        
-                        push!(reward_index, (current_state, input, next_state, obs))
-                        push!(reward_values, values)
-                    end
-                    
-                    if isequal(parsed_line[4], "*") && isequal(parsed_line[5], "*")
-                        if length(parsed_line) == 6
-                            values = parse(Float64, parsed_line[6])
-                        else
-                            print(parsed_line, "\n\n")
-                            @warn "I am setting the rewards/cost to be zero \n\n"
-                            values = 0.
-                        end
-                        turn_into_number_values!(parsed_line, name_of_states, name_of_actions, name_of_observations, [2, 3])
-
-                        input = parse(Int64, parsed_line[2])
-                        current_state = parse(Int64, parsed_line[3]) 
-                        next_state = 0
-                        obs = 0
-                        
-                        push!(reward_index, (current_state, input, next_state, obs))
-                        push!(reward_values, values)
-                    end
-                elseif number_wild_cards == 3
-                    parsed_line = filter(x->!isempty(x), parsed_line)
-
-                    if length(parsed_line) == 6
-                        values = parse(Float64, parsed_line[6])
-                    else
-                        @warn "I am setting the rewards/cost to be zero \n\n"
-                        values = 0.
-                    end
-
-                    if isequal(parsed_line[2], "*") && isequal(parsed_line[3], "*") && isequal(parsed_line[4], "*")
-                        turn_into_number_values!(parsed_line, name_of_states, name_of_actions, name_of_observations, [5])
-
-                        obs = parse(Int64, parsed_line[5])
-                        input = 0
-                        current_state = 0
-                        next_state = 0
-                        
-                        push!(reward_index, (current_state, input, next_state, obs))
-                        push!(reward_values, values)
-                    end
-
-                    if isequal(parsed_line[2], "*") && isequal(parsed_line[3], "*") && isequal(parsed_line[5], "*")
-                        turn_into_number_values!(parsed_line, name_of_states, name_of_actions, name_of_observations, [4])
-
-                        next_state = parse(Int64, parsed_line[4])
-                        input = 0
-                        current_state = 0
-                        obs = 0
-
-                        push!(reward_index, (current_state, input, next_state, obs))
-                        push!(reward_values, values)
-                    end
-                    
-                    if isequal(parsed_line[2], "*") && isequal(parsed_line[4], "*") && isequal(parsed_line[5], "*")
-                        turn_into_number_values!(parsed_line, name_of_states, name_of_actions, name_of_observations, [3])
-
-                        current_state = parse(Int64, parsed_line[3])
-                        input = 0
-                        next_state = 0
-                        obs = 0
-                        
-                        push!(reward_index, (current_state, input, next_state, obs))
-                        push!(reward_values, values)
-                    end
-                    
-                    if isequal(parsed_line[3], "*") && isequal(parsed_line[4], "*") && isequal(parsed_line[5], "*")
-                        turn_into_number_values!(parsed_line, name_of_states, name_of_actions, name_of_observations, [2])
-
-                        input = parse(Int64, parsed_line[2])
-                        current_state = 0
-                        next_state = 0
-                        obs = 0
-                        
-                        push!(reward_index, (current_state, input, next_state, obs))
-                        push!(reward_values, values)
-                    end
-                elseif number_wild_cards == 4
-                    if length(parsed_line) == 6
-                        values = parse(Float64, parsed_line[6])
-                    else
-                        @warn "I am setting the rewards/cost to be zero \n\n"
-                        values = 0.
-                    end
-
-                    input = 0
-                    current_state = 0
-                    next_state = 0
-                    obs = 0
-                    
-                    push!(reward_index, (current_state, input, next_state, obs))
-                    push!(reward_values, values)
-                end
-            end
-        end
-    end
-
-    @assert length(reward_index) == length(reward_values) "Error while constructing the transition probability. Keys and values must have the same size."
-    value_prob = OrderedDict(key => reward_values[index] for (index, key) in enumerate(reward_index))
-
-    return RewardValue{Int64}(value_prob, number_of_states, number_of_actions, number_of_observations)
 end
