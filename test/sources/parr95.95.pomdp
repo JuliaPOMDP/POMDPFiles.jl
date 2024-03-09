@@ -14,6 +14,7 @@ start: uniform
 start exclude: hi-A plus1
 start: hi-A plus1
 
+
 T : * : I : hi-A 0.5
  T : * : I : lo-A 0.5
 

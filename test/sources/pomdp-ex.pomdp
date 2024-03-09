@@ -16,6 +16,7 @@ start: 2
 start: 
 [0.1, 0.7, 0., 0., 0., 0.2]
 start: 2 4 6 
+
 start exclude: 1
 start exclude: 5 4 6
 start include: 
@@ -42,6 +43,7 @@ T: south
 0.1 0.1 0.1 0.1 0 0.6
 0.1 0.1 0.1 0.1 0 0.6
 
+
 T: east
      uniform
 
@@ -64,6 +66,7 @@ T: *
 0.1 0.1 0.1 0.1 0 0.6
 0.1 0.1 0.1 0.1 0 0.6
 0.1 0.1 0.1 0.1 0 0.6
+
 
 
 O: north : warm : warning 0.5 

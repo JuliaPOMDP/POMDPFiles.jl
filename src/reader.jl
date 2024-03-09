@@ -225,7 +225,8 @@ function get_after_colon(line::String)
     else
         return _get_after_colon(line, 1)    
     end
-
+    
+    @assert length(obs_prob_index) == length(obs_prob_values) "Error while constructing the transition probability. Keys and values must have the same size."
 end
 
 function _get_after_colon(line::String, ii::Int64)
@@ -503,7 +504,6 @@ function turn_into_number!(ℓ::LineParsing, name_of_states::Dict{String, Int64}
             end
         end
     end
-
     if !isempty(name_of_states_obs)
         # Different parsing if we are reading a value line
         if T == ValueTransition 
@@ -535,7 +535,6 @@ function turn_into_number!(ℓ::LineParsing, name_of_states::Dict{String, Int64}
         end
     end
 end
-
 #######
 
 struct DynamicTransition <: TypeOfTransition 
@@ -1062,6 +1061,7 @@ function process_transitions(μ::TypeOfTransition, name_of_states::Dict{String,I
                 temp_str = string.(split(parsed_line[5]))
                 parsed_line[5] = ""
                 parsed_line = filter(x->!isempty(x), parsed_line)
+
                 map(x->push!(parsed_line, x), temp_str)
 
                 number_wild_cards = count(x -> isequal(x, "*"), parsed_line)
@@ -1201,9 +1201,10 @@ function process_transitions(μ::TypeOfTransition, name_of_states::Dict{String,I
             end
         end
     end
-
+  
     @assert length(prob_indices) == length(prob_values) "Error while constructing the transition probability. Keys and values must have the same size."
     parsed_prob = OrderedDict(key => prob_values[index] for (index, key) in enumerate(prob_indices))
 
     return savetrans(μ, parsed_prob) 
 end
+
