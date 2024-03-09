@@ -2,7 +2,7 @@ using POMDPFiles, OrderedCollections
 using POMDPs, D3Trees, ARDESPOT, POMDPTools, POMCPOW  
 using BenchmarkTools
 
-file_path = "./../test/sources/baseball.POMDP"
+file_path = "./../test/sources/1d.noisy.POMDP"
     
 pomdp_read = FilePOMDP(file_path) # This is POMDP type and can be used with any suitable solver
 
