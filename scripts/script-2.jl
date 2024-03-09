@@ -2,9 +2,12 @@ using POMDPFiles, OrderedCollections
 using POMDPs, D3Trees, ARDESPOT, POMDPTools, POMCPOW  
 using BenchmarkTools
 
-file_path = "./../test/sources/concert.POMDP"
+file_path = "./../test/sources/pomdp-ex.pomdp"
     
 pomdp_read = FilePOMDP(file_path) # This is POMDP type and can be used with any suitable solver
+
+println(initialstate(pomdp_read))
+println(actions(pomdp_read))
 
 s0 = rand(initialstate(pomdp_read))
 a0 = rand(actions(pomdp_read))
@@ -16,8 +19,6 @@ hr = HistoryRecorder(max_steps=10000)
 @time rhist = simulate(hr, pomdp_read, RandomPolicy(pomdp_read))
 
 nothing
-
-
 
 
 
