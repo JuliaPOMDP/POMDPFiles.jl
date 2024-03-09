@@ -1,4 +1,3 @@
-# Downloaded from https://pomdp.org/examples/parr95.95.POMDP
 # This example is from Parr and Russell's paper on the SPOVA RL
 # algorithm from IJCAI'95.
 
@@ -8,15 +7,10 @@ states: I hi-A lo-A C D plus1 minus1
 actions: a b c
 observations: I A C D plus1 minus1
 
-start include: I hi-A C
-start exclude: C
-start: uniform
-start exclude: hi-A plus1
-start: hi-A plus1
-
+start include: I
 
 T : * : I : hi-A 0.5
- T : * : I : lo-A 0.5
+T : * : I : lo-A 0.5
 
 T : a : hi-A : C 1.0
 T : b : hi-A : minus1 1.0
@@ -34,15 +28,9 @@ T : a : D : lo-A 1.0
 T : b : D : I 1.0
 T : c : D : I 1.0
 
- T : * : plus1 : I 1.0
+T : * : plus1 : I 1.0
 
-    T : * : minus1 : I 1.0
-
-T: a: *: hi-A 0.6
-T: b: * : lo-A 0.7
-
-T: a : hi-A: * 1.0
-T: b: lo-A: * 0.7
+T : * : minus1 : I 1.0
 
 O : * : I : I 1.0
 O : * : hi-A : A 1.0
@@ -56,3 +44,4 @@ O : * : minus1 : minus1 1.0
 # non-negative rewards
 R: * : plus1 : * : * 2.0
 R: * : minus1 : * : * 0.0
+
