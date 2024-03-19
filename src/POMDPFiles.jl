@@ -4,16 +4,19 @@ using Reexport
 using POMDPs
 using POMDPTools
 using Printf
-using POMDPModels: TabularPOMDP, SFilePOMDP, FilePOMDP, ActionsParam, ObservationParam, StateParam, InitialStateParam, TransitionProb, ObservationProb, RewardValue
-using POMDPModels: number, prob, support, max_num_states, dict, statenames, actionnames, obsnames
 
 using OrderedCollections, LinearAlgebra
 
 @reexport using POMDPXFiles # for POMDPAlphas
 
-import POMDPs: action, value
+import POMDPs: transition, reward, discount, observation, states, stateindex, actions, actionindex, observations, obsindex, initialstate 
 
-export read_alpha, read_pomdp, reading_pomdp_dir
+include("types.jl")
+
+export FilePOMDP, SFilePOMDP, statenames, actionnames, obsnames 
+include("FilePOMDPs.jl")
+
+export read_alpha, read_pomdp 
 include("reader.jl")
 
 export numericprint, symbolicprint

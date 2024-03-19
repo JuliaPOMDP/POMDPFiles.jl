@@ -23,7 +23,7 @@ pomdpfiles = filter(endswith(".pomdp"), readdir(TEST_SOURCES; join=true))
     @test pdf(T, 1) == 1.0 && rand(T) == 1
     O = observation(pomdp, 1, 1)
     @test pdf(O, 1) == 1.0 && rand(O) == 1
-    @test reward(pomdp, 1, 1) == 1.0
+    @test reward(pomdp, 1, 1, 4, 2) == 1.0
 end
 
 @testset "Reading \"Parr & Russell's POMDP\"" begin
