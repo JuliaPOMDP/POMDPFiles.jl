@@ -80,24 +80,25 @@ function read_alpha(filename::AbstractString)
     return alpha_vectors, alpha_actions
 end
 
-function read_pomdp(filename::String, output::Symbol = :SFilePOMDP)
+function read_pomdp(filename::String; output::Symbol = :SFilePOMDP)
     lines = open(readlines, filename) |> remove_comments_and_white_space 
     # Reading the preamble of the file
     test_preamble = check_preamble_fields(lines)
 
     discount, type_reward, actions, states, observations = process_preamble(test_preamble)
+
+    dic_action = Dict(string(nn) => index for (index, nn) in enumerate(names(actions)))
+    dic_states = Dict(string(nn) => index for (index, nn) in enumerate(names(states)))
+    dic_obs = Dict(string(nn) => index for (index, nn) in enumerate(names(observations)))
     
-    ss_dic = Dict{String, Int64}(nn => index for (index, nn) in enumerate(string.(states.names_of_states)))
 
     # # Processing the initial distribution
     regex_init_cond = r"\s*start include\s*:|\s*start exclude\s*:|\s*start\s*:"
-
     init_state_lines = findall(startswith.(lines, regex_init_cond)) 
-
     init_state_info = InitialStateParam()
 
     if !isempty(lines[init_state_lines])
-        init_state_info = process_initial_distribution(states.number_of_states, ss_dic, lines[init_state_lines])
+        init_state_info = process_initial_distribution(names(states), dic_states, lines[init_state_lines])
     end
 
     # # Processing transition probability
@@ -134,24 +135,46 @@ function read_pomdp(filename::String, output::Symbol = :SFilePOMDP)
             end
         end
     end
+    # Processing observation probability
+    str_trans = join(files_transition, "\n")
+    vv = [string.(names(actions)), string.(names(states)), string.(names(states))]
 
-    dic_action = Dict(string(nn) => index for (index, nn) in enumerate(names(actions)))
-    dic_states = Dict(string(nn) => index for (index, nn) in enumerate(names(states)))
-    dic_obs = Dict(string(nn) => index for (index, nn) in enumerate(names(observations)))
+    wc_trans = WildcardArrays.parse(str_trans, vv)
 
-    transition_prob = process_transitions(DynamicTransition("T", number(states), number(actions), ["uniform", "identity"]), dic_states, dic_action, dic_states, files_transition)
-    obs_prob = process_transitions(ObsTransition("O", number(states), number(actions), number(observations), ["uniform"]), dic_states, dic_action, dic_obs, files_obs)
-    values_matrix = process_transitions(ValueTransition("R", number(states), number(actions), number(observations), []), dic_states, dic_action, dic_obs, files_values)
+    # Processing observation probability
+    str_obs = join(files_obs, "\n")
+    vv = [string.(names(actions)), string.(names(states)), string.(names(observations))]
 
-    pomdp_struc = FilePOMDP(number(states), number(actions), number(observations), init_state_info, discount[1], transition_prob, obs_prob, values_matrix)
+    wc_obs = WildcardArrays.parse(str_obs, vv)
+    
+    # Processing observation probability
+    str_values = join(files_values, "\n")
+    vv = [string.(names(actions)), string.(names(states)), string.(names(states)), string.(names(observations))]
 
-    if output == :FilePOMDP
-        return pomdp_struc
-    elseif output == :SFilePOMDP
-        return SFilePOMDP(dic_states, dic_action, dic_obs, pomdp_struc)
-    else
-        error("Output type invalid")
-    end
+    wc_values = WildcardArrays.parse(str_values, vv)
+
+    # return WildcardArrays.parse(str_obs, vv)
+    return wc_trans, wc_obs, wc_values
+
+    # return nothing
+
+    # dic_action = Dict(string(nn) => index for (index, nn) in enumerate(names(actions)))
+    # dic_states = Dict(string(nn) => index for (index, nn) in enumerate(names(states)))
+    # dic_obs = Dict(string(nn) => index for (index, nn) in enumerate(names(observations)))
+
+    # transition_prob = process_transitions(DynamicTransition("T", number(states), number(actions), ["uniform", "identity"]), dic_states, dic_action, dic_states, files_transition)
+    # obs_prob = process_transitions(ObsTransition("O", number(states), number(actions), number(observations), ["uniform"]), dic_states, dic_action, dic_obs, files_obs)
+    # values_matrix = process_transitions(ValueTransition("R", number(states), number(actions), number(observations), []), dic_states, dic_action, dic_obs, files_values)
+
+    # pomdp_struc = FilePOMDP(number(states), number(actions), number(observations), init_state_info, discount[1], transition_prob, obs_prob, values_matrix)
+
+    # if output == :FilePOMDP
+    #     return pomdp_struc
+    # elseif output == :SFilePOMDP
+    #     return SFilePOMDP(dic_states, dic_action, dic_obs, pomdp_struc)
+    # else
+    #     error("Output type invalid")
+    # end
 end
 
 ################ Auxiliary functions ##################
