@@ -82,90 +82,149 @@ end
 
 function read_pomdp(filename::String; output::Symbol = :SFilePOMDP)
     lines = open(readlines, filename) |> remove_comments_and_white_space 
-    # Reading the preamble of the file
-    test_preamble = check_preamble_fields(lines)
 
-    discount, type_reward, actions, states, observations = process_preamble(test_preamble)
+    # Getting info from preamble
+    regex_filtering_preamble = r"\s*[RTO]\s*:"
+    preamble = lines[1:findfirst(startswith.(lines, regex_filtering_preamble))-1]
+    preamble_dict = check_preamble_fields(join(preamble, "\n"))
+    discount, type_reward, actions, states, observations = process_preamble(preamble_dict)
 
     dic_action = Dict(string(nn) => index for (index, nn) in enumerate(names(actions)))
     dic_states = Dict(string(nn) => index for (index, nn) in enumerate(names(states)))
     dic_obs = Dict(string(nn) => index for (index, nn) in enumerate(names(observations)))
-    
 
-    # # Processing the initial distribution
-    regex_init_cond = r"\s*start include\s*:|\s*start exclude\s*:|\s*start\s*:"
-    init_state_lines = findall(startswith.(lines, regex_init_cond)) 
-    init_state_info = InitialStateParam()
+    # # # # Processing the initial distribution
+    initialstate = InitialStateParam()
+    if "start" in keys(preamble_dict)
+        initialstate_content = preamble_dict["start"] 
 
-    if !isempty(lines[init_state_lines])
-        init_state_info = process_initial_distribution(names(states), dic_states, lines[init_state_lines])
-    end
+        if isequal(initialstate_content, "uniform")
+            initialstate.support_of_distribution = Set([i for i in Base.OneTo(number(states))])
+            initialstate.value_of_distribution = (1/number(states))*ones(number(states))
+            initialstate.type_of_distribution = "uniform"
+            initialstate.number = number(states)
 
-    # # Processing transition probability
-
-    sorted_fields = order_of_transition_reward_observation(lines, 1)
-
-    files_transition = []
-    files_obs = []
-    files_values = []
-
-    # Finding the chunk of the file with the transition, observation, and reward specifications
-    for (index, (type_of_matrix, line_number)) in enumerate(sorted_fields)
-        if index  < length(sorted_fields)
-            range_spec = line_number:(sorted_fields[index+1][2] -1)
-            if isequal(type_of_matrix, "T")
-                files_transition = lines[range_spec]
-            end
-            if isequal(type_of_matrix, "O")
-                files_obs = lines[range_spec]
-            end
-            if isequal(type_of_matrix, "R")
-                files_values = lines[range_spec]
-            end
         else
-            range_spec = (line_number:length(lines))
-            if isequal(type_of_matrix, "T")
-                files_transition = lines[range_spec]
+            types = [Float64, Int]
+            tmp_initialstate_content = map(x->tryparse.(x, string.(split(initialstate_content))), types)
+
+            # Either a vector suming to one
+            if all(x -> !isnothing(x), tmp_initialstate_content[1]) # or a vector of floats 
+                @assert test_if_probability(tmp_initialstate_content[1]) 
+
+                # Saving content on InitialStateParam
+                initialstate.value_of_distribution = tmp_initialstate_content[1]
+                initialstate.support_of_distribution = Set(findall(x -> x > 0, initialstate.value_of_distribution))
+                initialstate.type_of_distribution = "general distribution"
+                initialstate.number = number(states)    
+
+            elseif all(x -> !isnothing(x), tmp_initialstate_content[2]) # or a vector of integers 
+                @assert (all(x -> x >= 1 && x <= number(states), tmp_initialstate_content[2])) 
+
+                # Saving content on InitialStateParam
+                initialstate.support_of_distribution = Set(tmp_initialstate_content[2])
+                initialstate.value_of_distribution = vec((1/length(initialstate.support_of_distribution))*sum(Diagonal(ones(Float64, number(states)))[:, collect(initialstate.support_of_distribution)], dims=2))
+                initialstate.type_of_distribution = "uniform"
+                initialstate.number = number(states)
+
+            elseif all(x-> x in names(states), string.(split(initialstate_content))) # or a vector of names
+                # Saving content on InitialStateParam
+                init_state = map(x -> dic_states[x], string.(split(initialstate_content)))
+                initialstate.support_of_distribution = Set(init_state)
+                initialstate.value_of_distribution = vec((1/length(initialstate.support_of_distribution))*sum(Diagonal(ones(Float64, number(states)))[:, collect(initialstate.support_of_distribution)], dims=2))
+                initialstate.type_of_distribution = "uniform"
+                initialstate.number = number(states)
+
+            else
+                error("Unable to parse the initial condition.")
             end
-            if isequal(type_of_matrix, "O")
-                files_obs = lines[range_spec]
-            end
-            if isequal(type_of_matrix, "R")
-                files_values = lines[range_spec]
-            end
+
         end
     end
 
-    # Processing observation probability
-    str_trans = join(files_transition, "\n")
-    vv = [string.(names(actions)), string.(names(states)), string.(names(states))]
-    wc_trans = WildcardArrays.parse(str_trans, vv)
+    return discount, type_reward, actions, states, observations, preamble_dict, initialstate 
 
-    # Processing observation probability
-    str_obs = join(files_obs, "\n")
-    vv = [string.(names(actions)), string.(names(states)), string.(names(observations))]
-    wc_obs = WildcardArrays.parse(str_obs, vv)
-    
-    # Processing observation probability
-    str_values = join(files_values, "\n")
-    vv = [string.(names(actions)), string.(names(states)), string.(names(states)), string.(names(observations))]
-    wc_values = WildcardArrays.parse(str_values, vv)
-    
-    pomdp_struc = FilePOMDP(number(states), number(actions), number(observations), init_state_info, discount[1], wc_trans, wc_obs, wc_values)
+    # # # Processing the initial distribution
+    # regex_start = r"\s*start\s*:"
 
-    if output == :FilePOMDP
-        return pomdp_struc
-    elseif output == :SFilePOMDP
-        return SFilePOMDP(dic_states, dic_action, dic_obs, pomdp_struc)
-    else
-        error("Output type invalid")
-    end
+    # # regex_init_cond = r"\s*start include\s*:|\s*start exclude\s*:|\s*start\s*:"
+    # init_state_lines = findall(startswith.(preamble, regex_init_cond)) 
+    # init_state_info = InitialStateParam()
+
+    # if !isempty(preamble[init_state_lines])
+    #     content = 
+    #     init_state_info = process_initial_distribution(names(states), dic_states, preamble[init_state_lines])
+    # end
+
+    # # # Processing transition probability
+
+    # sorted_fields = order_of_transition_reward_observation(lines, 1)
+
+    # files_transition = []
+    # files_obs = []
+    # files_values = []
+
+    # # Finding the chunk of the file with the transition, observation, and reward specifications
+    # for (index, (type_of_matrix, line_number)) in enumerate(sorted_fields)
+    #     if index  < length(sorted_fields)
+    #         range_spec = line_number:(sorted_fields[index+1][2] -1)
+    #         if isequal(type_of_matrix, "T")
+    #             files_transition = lines[range_spec]
+    #         end
+    #         if isequal(type_of_matrix, "O")
+    #             files_obs = lines[range_spec]
+    #         end
+    #         if isequal(type_of_matrix, "R")
+    #             files_values = lines[range_spec]
+    #         end
+    #     else
+    #         range_spec = (line_number:length(lines))
+    #         if isequal(type_of_matrix, "T")
+    #             files_transition = lines[range_spec]
+    #         end
+    #         if isequal(type_of_matrix, "O")
+    #             files_obs = lines[range_spec]
+    #         end
+    #         if isequal(type_of_matrix, "R")
+    #             files_values = lines[range_spec]
+    #         end
+    #     end
+    # end
+
+    # # Processing observation probability
+    # str_trans = join(files_transition, "\n")
+    # vv = [string.(names(actions)), string.(names(states)), string.(names(states))]
+    # wc_trans = WildcardArrays.parse(str_trans, vv)
+
+    # # Processing observation probability
+    # str_obs = join(files_obs, "\n")
+    # vv = [string.(names(actions)), string.(names(states)), string.(names(observations))]
+    # wc_obs = WildcardArrays.parse(str_obs, vv)
+    
+    # # Processing observation probability
+    # str_values = join(files_values, "\n")
+    # vv = [string.(names(actions)), string.(names(states)), string.(names(states)), string.(names(observations))]
+    # wc_values = WildcardArrays.parse(str_values, vv)
+    
+    # pomdp_struc = FilePOMDP(number(states), number(actions), number(observations), init_state_info, discount[1], wc_trans, wc_obs, wc_values)
+
+    # if output == :FilePOMDP
+    #     return pomdp_struc
+    # elseif output == :SFilePOMDP
+    #     return SFilePOMDP(dic_states, dic_action, dic_obs, pomdp_struc)
+    # else
+    #     error("Output type invalid")
+    # end
 end
 
 ################ Auxiliary functions ##################
-function test_if_probability(prob::Vector{Float64};rtol=1e-3)
-    between_0_1 = all(x -> 0 <= x <= 1, prob)
-    return (between_0_1 && isapprox(sum(prob), 1; rtol=rtol)) ? true : false
+function test_if_probability(prob::Union{Vector{Float64}, Vector{Nothing}, Nothing};rtol=1e-3)
+    if isnothing(prob) || eltype(prob) == Nothing
+        return false
+    else
+        between_0_1 = all(x -> 0 <= x <= 1, prob)
+        return (between_0_1 && isapprox(sum(prob), 1; rtol=rtol)) ? true : false
+    end
 end
 
 function remove_comments_and_white_space(file::Vector{String})
@@ -253,14 +312,23 @@ end
 
 ######### Auxiliary functions -- PREAMBLE ###############
 
-function check_preamble_fields(file_lines::Vector{String})
+function check_preamble_fields(preamble::String)
+    # I am assuming this function is going to work on a string that contains the preamble and the first line of non-preamble content, e.g.,
+    # preamble = """
+    # discount: 0.95\nvalues: reward\nstates: 11\nactions: N0 S0 E0 W0\nobservations: 7\nstart: 0.100000 0.100000 0.100000 0.100000 0.100000 0.100000 0.100000 0.100000 0.100000 0.100000 0.0 
+    # T: 0 : 0 : 0 0.4586 
+    # """ 
+
     key_fields = ["discount", "values", "states", "actions", "observations"]
-    organized_preamble = Dict{String, String}() 
+    preamble_vec = string.(split(preamble, "\n"))
+
+    preamble_dict = Dict{String, String}() 
     field_dict = Dict{String, Int64}()
 
+    # Checking whether the preamble has all the necessary fields
     for field in key_fields
         reg_expr = Regex("\\s*$(field)\\s*:")
-        index = findfirst(startswith.(file_lines, reg_expr))
+        index = findfirst(startswith.(preamble_vec, reg_expr))
 
         if !isnothing(index) 
             field_dict[field] = index
@@ -269,47 +337,16 @@ function check_preamble_fields(file_lines::Vector{String})
         end
     end
 
-    sorted_fields = sort(collect(field_dict), by = x -> x[2]) # sorting is necessary to deal with the case in which the parameters are specified in several lines
+    regex_preamble = r"\s*(.*)\s*:\s+([\d\D]*?)(?=(.*:)|$)"
+    
+    for m in eachmatch(regex_preamble, preamble)
+        field = m.captures[1]
+        content = m.captures[end-1]
 
-    for (counter, (field, index_in_file)) in enumerate(sorted_fields) # necessary to deal with in-between specifications
-       
-        if counter < length(sorted_fields)
-            if sorted_fields[counter+1][2] - index_in_file == 1
-                temp_match = get_after_colon(file_lines[index_in_file]) |> strip
-            else
-                range_spec = index_in_file:(sorted_fields[counter+1][2]-1)
-                temp_match = join(file_lines[range_spec], " ") |> get_after_colon |> strip 
-            end
-        else
-            other_fields = ["T", "O", "R", "start", "start include", "start exclude"]
-            regex_other = ""
-
-            # Construction regex to field other fields
-            for (index, field) in enumerate(other_fields)
-                regex_other *= "\\s*$(field)\\s*:"
-                if index < length(other_fields)
-                    regex_other *= "|"
-                end
-            end
-            next_indices = findfirst(startswith.(file_lines, Regex(regex_other)))
-
-            if isnothing(next_indices)
-                error("Error while parsing the preamble. It seems the information about the transitions is missing from the file.")
-            else
-                if next_indices - index_in_file == 1 
-                    temp_match = get_after_colon(file_lines[index_in_file]) |> strip
-                else
-                    range_spec = index_in_file:(next_indices-1)
-
-                    temp_match = join(file_lines[range_spec], " ") |> get_after_colon |> strip
-                end
-            end
-        end
-
-        organized_preamble[field] = temp_match 
+        preamble_dict[field] = strip(content, ['\n', '\r', ' ', '\"'])
     end
 
-    return Dict{String, String}(kk => mm for (kk,mm) in organized_preamble) 
+    return preamble_dict
 end
 
 function process_preamble(preamble::Dict{String, String})
@@ -321,20 +358,16 @@ function process_preamble(preamble::Dict{String, String})
 
     # checking value syntax => either "reward" or "cost"
     values_type = preamble["values"]
-    values_type = replace(values_type, r"[\"+]|[\s+]" => "")
     values_param = [(isequal(values_type,"reward")) || (isequal(values_type,"cost") || isequal(values_type, "rewards") || isequal(values_type, "costs")) ? values_type : error("Invalid specification for the objective function.")]
-
     # checking actions syntax => either an integer or a collection of names
     actions_param = convert_to_data_structure("actions", preamble) 
-    
     # checking states syntax => either an integer or a collection of names
     states_param = convert_to_data_structure("states", preamble) 
-
     # checking observation syntax => either an integer or a collection of names
     observations_param = convert_to_data_structure("observations", preamble)
 
 
-    # IT IS MISSING TO TEST WHERE WE HAVE A VECTOR OF STRINGS HERE
+
     return discount, values_param, ContainerNames(actions_param), ContainerNames(states_param), ContainerNames(observations_param)
 end
 

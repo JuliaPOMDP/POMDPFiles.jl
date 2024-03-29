@@ -13,14 +13,14 @@ ContainerNames(names_of_actions::Vector{String}) = ContainerNames(names_of_actio
 Base.names(a::ContainerNames) = a.names
 number(a::ContainerNames) = a.number
 
-struct InitialStateParam
+mutable struct InitialStateParam
     number::Int
     type_of_distribution::String
     support_of_distribution::Set{Int}
     value_of_distribution::Vector{Float64}
 
-    InitialStateParam(number::Int) = new(number, " ", Set{Int}([]), Vector{Float64}([])) 
 end
+InitialStateParam(number::Int) = InitialStateParam(number, " ", Set{Int}([]), Vector{Float64}([])) 
 InitialStateParam() = InitialStateParam(0)
 
 number(init::InitialStateParam) = init.size_of_states

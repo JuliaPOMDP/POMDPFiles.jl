@@ -8,24 +8,7 @@ observations:
 warning more-warning 
 
 
-start: 
-
-"uniform"
-
-start: 2 
-start: 
-[0.1, 0.7, 0., 0., 0., 0.2]
-start: 2 4 6 
-
-start exclude: 1
-start exclude: 5 4 6
-start include: 
-
-
-1 2 3 4 5
-start exclude: 
-
-1 6 3
+start: warm very-very-cold 
 
 T: east : warm : almost-cold 0.5  
 T: west : cold : * 9.7
