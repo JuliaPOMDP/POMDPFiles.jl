@@ -88,10 +88,8 @@ function read_pomdp(filename::String; output::Symbol = :SFilePOMDP)
     preamble = lines[1:findfirst(startswith.(lines, regex_filtering_preamble))-1]
     preamble_dict = check_preamble_fields(join(preamble, "\n"))
     discount, type_reward, actions, states, observations = process_preamble(preamble_dict)
-
-    dic_action = Dict(string(nn) => index for (index, nn) in enumerate(names(actions)))
-    dic_states = Dict(string(nn) => index for (index, nn) in enumerate(names(states)))
-    dic_obs = Dict(string(nn) => index for (index, nn) in enumerate(names(observations)))
+    
+    dic_states = Dict(string(nn) => index for (index, nn) in enumerate(names(states))) # needed here to process the initial state
 
     # # # # Processing the initial distribution
     initialstate = InitialStateParam()
@@ -142,79 +140,66 @@ function read_pomdp(filename::String; output::Symbol = :SFilePOMDP)
         end
     end
 
-    return discount, type_reward, actions, states, observations, preamble_dict, initialstate 
+    sorted_fields = order_of_transition_reward_observation(lines, 1)
 
-    # # # Processing the initial distribution
-    # regex_start = r"\s*start\s*:"
+    files_transition = []
+    files_obs = []
+    files_values = []
+    # Finding the chunk of the file with the transition, observation, and reward specifications
+    for (index, (type_of_matrix, line_number)) in enumerate(sorted_fields)
+        if index  < length(sorted_fields)
+            range_spec = line_number:(sorted_fields[index+1][2] -1)
+            if isequal(type_of_matrix, "T")
+                files_transition = lines[range_spec]
+            end
+            if isequal(type_of_matrix, "O")
+                files_obs = lines[range_spec]
+            end
+            if isequal(type_of_matrix, "R")
+                files_values = lines[range_spec]
+            end
+        else
+            range_spec = (line_number:length(lines))
+            if isequal(type_of_matrix, "T")
+                files_transition = lines[range_spec]
+            end
+            if isequal(type_of_matrix, "O")
+                files_obs = lines[range_spec]
+            end
+            if isequal(type_of_matrix, "R")
+                files_values = lines[range_spec]
+            end
+        end
+    end
 
-    # # regex_init_cond = r"\s*start include\s*:|\s*start exclude\s*:|\s*start\s*:"
-    # init_state_lines = findall(startswith.(preamble, regex_init_cond)) 
-    # init_state_info = InitialStateParam()
-
-    # if !isempty(preamble[init_state_lines])
-    #     content = 
-    #     init_state_info = process_initial_distribution(names(states), dic_states, preamble[init_state_lines])
-    # end
-
-    # # # Processing transition probability
-
-    # sorted_fields = order_of_transition_reward_observation(lines, 1)
-
-    # files_transition = []
-    # files_obs = []
-    # files_values = []
-
-    # # Finding the chunk of the file with the transition, observation, and reward specifications
-    # for (index, (type_of_matrix, line_number)) in enumerate(sorted_fields)
-    #     if index  < length(sorted_fields)
-    #         range_spec = line_number:(sorted_fields[index+1][2] -1)
-    #         if isequal(type_of_matrix, "T")
-    #             files_transition = lines[range_spec]
-    #         end
-    #         if isequal(type_of_matrix, "O")
-    #             files_obs = lines[range_spec]
-    #         end
-    #         if isequal(type_of_matrix, "R")
-    #             files_values = lines[range_spec]
-    #         end
-    #     else
-    #         range_spec = (line_number:length(lines))
-    #         if isequal(type_of_matrix, "T")
-    #             files_transition = lines[range_spec]
-    #         end
-    #         if isequal(type_of_matrix, "O")
-    #             files_obs = lines[range_spec]
-    #         end
-    #         if isequal(type_of_matrix, "R")
-    #             files_values = lines[range_spec]
-    #         end
-    #     end
-    # end
+    # Processing observation probability
+    str_trans = join(files_transition, "\n")
+    vv = [names(actions), names(states), names(states)]
+    wc_trans = WildcardArrays.parse(str_trans, vv)
 
     # # Processing observation probability
-    # str_trans = join(files_transition, "\n")
-    # vv = [string.(names(actions)), string.(names(states)), string.(names(states))]
-    # wc_trans = WildcardArrays.parse(str_trans, vv)
-
-    # # Processing observation probability
-    # str_obs = join(files_obs, "\n")
-    # vv = [string.(names(actions)), string.(names(states)), string.(names(observations))]
-    # wc_obs = WildcardArrays.parse(str_obs, vv)
+    str_obs = join(files_obs, "\n")
+    vv = [names(actions), names(states), names(observations)]
+    wc_obs = WildcardArrays.parse(str_obs, vv)
     
     # # Processing observation probability
-    # str_values = join(files_values, "\n")
-    # vv = [string.(names(actions)), string.(names(states)), string.(names(states)), string.(names(observations))]
-    # wc_values = WildcardArrays.parse(str_values, vv)
+    str_values = join(files_values, "\n")
+    vv = [names(actions), names(states), names(states), names(observations)]
+    wc_values = WildcardArrays.parse(str_values, vv)
     
-    # pomdp_struc = FilePOMDP(number(states), number(actions), number(observations), init_state_info, discount[1], wc_trans, wc_obs, wc_values)
+    pomdp_struc = FilePOMDP(number(states), number(actions), number(observations), initialstate, discount[1], wc_trans, wc_obs, wc_values)
 
-    # if output == :FilePOMDP
-    #     return pomdp_struc
-    # elseif output == :SFilePOMDP
-    #     return SFilePOMDP(dic_states, dic_action, dic_obs, pomdp_struc)
-    # else
-    #     error("Output type invalid")
-    # end
+    if output == :FilePOMDP
+        return pomdp_struc
+
+    elseif output == :SFilePOMDP
+        dic_action = Dict(string(nn) => index for (index, nn) in enumerate(names(actions)))
+        dic_obs = Dict(string(nn) => index for (index, nn) in enumerate(names(observations)))
+
+        return SFilePOMDP(dic_states, dic_action, dic_obs, pomdp_struc)
+    else
+        error("Output type invalid")
+    end
 end
 
 ################ Auxiliary functions ##################
@@ -239,54 +224,6 @@ function remove_comments_and_white_space(file::Vector{String})
     end
 
     return Vector{String}(filter(x -> !isempty(x), processed_file))
-end
-
-function get_before_colon(line::String)
-    regex_before_colon = r"([^:]*):"
-
-    search_pattern = match(regex_before_colon, line)
-    
-    return !isnothing(search_pattern) ? replace(search_pattern.match, r":+" => "") : "none-found"
-end
-
-function get_after_colon(line::String)
-    # println(length(line))
-    if length(line) > 5000 # breaking in chunks of 5000
-        number_chunks = div(length(line), 5000)
-        # println(number_chunks)
-        temp = "" 
-
-        for ii in 1:number_chunks
-            pre_process = ii < number_chunks ? _get_after_colon(line[(ii-1)*5000 + 1:ii*5000], ii) : _get_after_colon(line[((ii-1)*5000 +1):length(line)], ii)
-            # println(pre_process)
-            # println(typeof(pre_process))
-            if !isequal(pre_process, "none-found")
-                temp = temp*pre_process
-            else
-                error("Error while parsing the file.")
-            end
-        end
-        return temp
-    else
-        return _get_after_colon(line, 1)    
-    end
-    
-    @assert length(obs_prob_index) == length(obs_prob_values) "Error while constructing the transition probability. Keys and values must have the same size."
-end
-
-function _get_after_colon(line::String, ii::Int64)
-    if ii == 1
-        regex_after_colon = r":(.)*$"
-        search_pattern = match(regex_after_colon, line)
-
-        if !isnothing(search_pattern)
-            return replace(search_pattern.match, r":+" => "")
-        else
-            return "none-found"
-        end
-    else
-        return line
-    end
 end
 
 function convert_to_data_structure(field::String, preamble::Dict{String,String}) 
@@ -340,10 +277,10 @@ function check_preamble_fields(preamble::String)
     regex_preamble = r"\s*(.*)\s*:\s+([\d\D]*?)(?=(.*:)|$)"
     
     for m in eachmatch(regex_preamble, preamble)
-        field = m.captures[1]
-        content = m.captures[end-1]
+        field = strip(m.captures[1], ['\n', '\r', ' ', '\"'])
+        content = strip(m.captures[end-1], ['\n', '\r', ' ', '\"'])
 
-        preamble_dict[field] = strip(content, ['\n', '\r', ' ', '\"'])
+        preamble_dict[field] = content
     end
 
     return preamble_dict
@@ -369,123 +306,4 @@ function process_preamble(preamble::Dict{String, String})
 
 
     return discount, values_param, ContainerNames(actions_param), ContainerNames(states_param), ContainerNames(observations_param)
-end
-
-################ Auxiliary functions -- INITIAL DISTRIBUTION ################## 
-
-function _process_initial_distribution_start(state_size::Int64, after_colon::String, name_of_states::Dict{String, Int64})
-    aux_var = tryparse(Int64, after_colon)
-
-    if all(map(x -> !isnothing(tryparse(Int64, x)), split(after_colon))) # testing whether is a number
-        aux_var = map(x -> parse(Int64, x), split(after_colon))  
-
-        if maximum(aux_var) > state_size
-            error("Unable to parse the initial state since initial condition is larger than the size of the state space.")
-        end
-
-        value_of_distribution = Diagonal(ones(Float64, state_size))[:,aux_var]
-        support_of_distribution = Set{Int64}(aux_var) 
-
-        if length(aux_var) == 1
-            return InitialStateParam{Int64}(state_size, "dirac", support_of_distribution, vec(value_of_distribution)) 
-        else
-            value_of_distribution = sum(value_of_distribution, dims=2) |> vec
-            value_of_distribution = value_of_distribution/sum(value_of_distribution)
-            return InitialStateParam{Int64}(state_size, "uniform", support_of_distribution, value_of_distribution) 
-        end
-        
-    elseif all(x -> isa(x, Float64) && (x<=1) && (x>=0) , map(x->tryparse(Float64, replace(x, r"[\"+]|[\[+]|[\]+]|[\,+]" => "")), split(after_colon))) # testing whether initial distirbution is a probability vector
-        value_of_distribution =  map(x->parse(Float64, replace(x, r"[\"+]|[\[+]|[\]+]|[\,+]" => "")), split(after_colon))
-        support_of_distribution =  Set(findall(x -> x > 0, value_of_distribution))
-        return InitialStateParam{Int64}(state_size, "general distribution", support_of_distribution, value_of_distribution) 
-
-    elseif isequal(replace(after_colon, r"[\"+]|[\s+]" => ""), "uniform") # testing initial state is uniform 
-        value_of_distribution = (1/state_size)*ones(state_size)
-        support_of_distribution = Set{Int64}([i for i in Base.OneTo(state_size)])
-
-        return InitialStateParam{Int64}(state_size, "uniform", support_of_distribution, value_of_distribution)
-
-    elseif all(x -> x in keys(name_of_states), split(after_colon)) # where the initial distribution is passed with names
-        init_state = map(x -> name_of_states[x], split(after_colon))
-
-        support_of_distribution = Set{Int64}(init_state)
-        value_of_distribution = (1/length(support_of_distribution))*sum(Diagonal(ones(state_size))[:,collect(support_of_distribution)], dims=2)
-        
-        return InitialStateParam{Int64}(state_size, "uniform", support_of_distribution, vec(value_of_distribution)) 
-    else
-        error("Invalid syntax for the initial condition.")
-    end
-end
-
-function _process_initial_distribution_start_include(state_initial_param::InitialStateParam, after_colon::String, name_of_states::Dict{String, Int64})
-    init_state = split(after_colon)
-    state_size = number(state_initial_param)
-    
-    if all(x -> tryparse(Int64, x) in 1:state_size, init_state) 
-        adding_set = Set{Int64}(map(x -> parse(Int64, x), init_state)) 
-
-        support_of_distribution = union(adding_set, state_initial_param.support_of_distribution) 
-        value_of_distribution = (1/length(support_of_distribution))*sum(Diagonal(ones(state_size))[:,collect(support_of_distribution)], dims=2)
-
-        return InitialStateParam{Int64}(state_size, "uniform", support_of_distribution, vec(value_of_distribution)) 
-
-    elseif all(x -> x in keys(name_of_states), init_state)
-        init_state = map(x -> name_of_states[x], init_state)
-        adding_set = Set{Int64}(init_state)
-        
-        support_of_distribution = union(adding_set, state_initial_param.support_of_distribution) 
-        value_of_distribution = (1/length(support_of_distribution))*sum(Diagonal(ones(state_size))[:,collect(support_of_distribution)], dims=2)
-
-        return InitialStateParam{Int64}(state_size, "uniform", support_of_distribution, vec(value_of_distribution)) 
-    else
-        error("Unable to parse the start include line.")
-    end
-end
-
-function _process_initial_distribution_start_exclude(state_initial_param::InitialStateParam, after_colon::String, name_of_states::Dict{String, Int64})
-    init_state = split(after_colon)
-    state_size = state_initial_param.size_of_states
-    
-    if all(x -> isa(tryparse(Int64, x), Int64), init_state) 
-        excluding_set = Set{Int64}(map(x -> parse(Int64, x), init_state)) 
-
-        support_of_distribution = setdiff(state_initial_param.support_of_distribution, excluding_set)
-        value_of_distribution = (1/length(support_of_distribution))*sum(Diagonal(ones(state_size))[:,collect(support_of_distribution)], dims=2)
-
-    elseif all(x -> x in keys(name_of_states), init_state)
-        init_state = map(x -> name_of_states[x], init_state)
-        excluding_set = Set{Int64}(init_state)
-
-        support_of_distribution = setdiff(state_initial_param.support_of_distribution, excluding_set) 
-        value_of_distribution = (1/length(support_of_distribution))*sum(Diagonal(ones(state_size))[:,collect(support_of_distribution)], dims=2)
-
-    else
-        error("Unable to parse the start exclude line.")
-    end
-    
-    return InitialStateParam{Int64}(state_size, "uniform", support_of_distribution, vec(value_of_distribution)) 
-end
-
-function process_initial_distribution(number_of_states::Int64, name_of_states::Dict{String, Int64}, initial_state_ocurrences::Vector{String})
-    # According to the grammar this can either be a number, a probability distribution over states, or strings (uniform or states' names)
-    initial_state_param = InitialStateParam(number_of_states)
-    
-    for line in initial_state_ocurrences
-        type_init_state = get_before_colon(line)
-        param_init = get_after_colon(line) 
-       
-        if isequal(type_init_state, "start")
-            initial_state_param = _process_initial_distribution_start(number_of_states, param_init, name_of_states)
-
-        elseif isequal(type_init_state, "start include")
-            initial_state_param = _process_initial_distribution_start_include(initial_state_param, param_init, name_of_states)
-            
-        elseif isequal(type_init_state, "start exclude")
-            initial_state_param = _process_initial_distribution_start_exclude(initial_state_param, param_init, name_of_states)
-        else
-            error("Unable to parse the initial condition.")
-        end
-    end
-
-    return initial_state_param
 end

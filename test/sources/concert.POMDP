@@ -33,7 +33,7 @@ O: nothing : bored      0.1 0.9
 
 R: tv : * : *: * -10
 
-R: radio : 1 : *: * -4
+R: radio : interested : *: * -4
 
 R: nothing : * : *: * 0
 
