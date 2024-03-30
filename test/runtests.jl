@@ -9,8 +9,9 @@ ff_pomdp, ff_gz, ff_tar_gz = save_files(false)
 files_path = [ff_pomdp, ff_gz, ff_tar_gz...]
 all_files_path = read_pomdp_dir(files_path) 
 max_num = [50,50] # max number of states and actions of POMDPs to be tested
-
-individual_tests = set_individual_tests() 
+    
+nn_individual_tests = ["mit", "hallway", "bulkhead.A", "baseball", "tiger.95"]
+individual_tests = set_individual_tests(nn_individual_tests) 
 
 problems = ["concert", "ejs1", "ejs2", "ejs4", "ejs5", "ejs6", "ejs7"]
 
@@ -21,7 +22,7 @@ for file_path in all_files_path
         @testset "Testing file: $(ff_name)" begin
             pomdp_read = SFilePOMDP(file_path)
 
-            if ff_name in nn_indivual_test
+            if ff_name in nn_individual_tests 
                 for key in keys(individual_tests[ff_name])
                     if isequal(key, "T")
                         @test all([pomdp_read.pomdp.T[k...] == vv for (k,vv) in zip(keys(individual_tests[ff_name]["T"]), values(individual_tests[ff_name]["T"]))])

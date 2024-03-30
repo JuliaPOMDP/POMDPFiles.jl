@@ -95,9 +95,7 @@ function read_pomdp_dir(dir_path::Vector{String})
     return file_dir
 end
 
-function set_individual_tests()
-    nn_indivual_test = ["mit", "hallway", "bulkhead.A", "baseball", "tiger.95"]
-
+function set_individual_tests(nn_individual_tests::Vector{String})
 ## mit.pomdp tests set-up
     #   3 semicolon 
     T_tuple_mit = [(1,52,92), (2, 55, 54), (4,  161, 161), (3, 66, 68)]  
@@ -181,6 +179,6 @@ function set_individual_tests()
     name_to_dic = Dict("mit" => mit_dict, "baseball" => baseball_dict, 
     "tiger.95" => tiger_95_dict, "hallway" => hallway_dict, "bulkhead.A" => bulkhead_A_dict)
 
-    return Dict(name => name_to_dic[name] for name in nn_indivual_test) 
+    return Dict(name => name_to_dic[name] for name in nn_individual_tests)
 end
 
