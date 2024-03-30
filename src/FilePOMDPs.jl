@@ -39,13 +39,13 @@ function transition(m::FilePOMDP, s::Int, a::Int)
 end
 
 function observation(m::FilePOMDP, a::Int, sp::Int)
-    prob_obs = [m.O[(a, sp, obs)] for obs in observations(m)]
+    prob_obs = [m.O[a, sp, obs] for obs in observations(m)]
     return SparseCat(observations(m), prob_obs)
 end
 
-reward(m::FilePOMDP, s::Int, a::Int, sp::Int, obs::Int) = m.R[(a,s,sp,obs)]
-reward(m::FilePOMDP, s::Int, a::Int, sp::Int) = m.R[(a,s,sp,1)]
-reward(m::FilePOMDP, s::Int, a::Int) = m.R[(a,s,1,1)]
+reward(m::FilePOMDP, s::Int, a::Int, sp::Int, obs::Int) = m.R[a,s,sp,obs]
+reward(m::FilePOMDP, s::Int, a::Int, sp::Int) = m.R[a,s,sp,1]
+reward(m::FilePOMDP, s::Int, a::Int) = m.R[a,s,1,1]
 
 discount(m::FilePOMDP) = m.discount
 

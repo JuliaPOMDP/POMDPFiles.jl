@@ -1,0 +1,9 @@
+[deps]
+Cascadia = "54eefc05-d75b-58de-a785-1a3403f0919f"
+CodecZlib = "944b1d66-785c-5afd-91f1-9de20f533193"
+Gumbo = "708ec375-b3d6-5a57-a7ce-8257bf98657a"
+HTTP = "cd3eb016-35fb-5094-929b-558a96fad6f3"
+POMDPFiles = "9cf5b727-2e06-5671-8c87-8c6b0f729d5d"
+POMDPs = "a93abf59-7444-517b-a68a-c42f96afdd7d"
+Tar = "a4e569a6-e804-4fa4-b0f3-eef7a1d5b13e"
+WildcardArrays = "05d16eb0-506c-4fac-9187-f7ce7e253b09"
