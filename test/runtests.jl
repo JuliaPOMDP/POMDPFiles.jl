@@ -10,8 +10,8 @@ files_path = [ff_pomdp, ff_gz, ff_tar_gz...]
 all_files_path = read_pomdp_dir(files_path) 
 max_num = [50,50]
 
-# nn_indivual_test = ["mit", "aloha.30", "baseball", "tiger.95", "hallway", "bulkhead"]
-nn_indivual_test = ["mit", "hallway"]
+# nn_indivual_test = ["mit", "baseball", "tiger.95", "hallway", "bulkhead"]
+nn_indivual_test = ["mit", "hallway", "bulkhead.A", "baseball"]
 
 ## mit.pomdp tests set-up
     #   3 semicolon 
@@ -46,8 +46,60 @@ nn_indivual_test = ["mit", "hallway"]
     R_dict_hallway = Dict(R_tuple_hallway[i] => R_values_hallway[i] for i in eachindex(R_tuple_hallway))
     hallway_dict = Dict("T" => T_dict_hallway, "O" => O_dict_hallway, "R" => R_dict_hallway)
 
-name_to_dic = Dict("mit" => mit_dict, "aloha.30" => "aloha30_dict", "baseball" => "baseball_dict", 
-    "tiger.95" => "tiger95_dict", "hallway" => hallway_dict, "bulkhead" => "bulkhead_dict")
+# bulkhead_A.POMDP tests set-up
+    # Values given by transition probabilities and wild cards 
+    T_tuple_bulkhead_A = [(4,1,4), (4, 4, 1), (4,5,8), (6,1,10), (1,2,2), (1,3,3), (2,1,2)] 
+    T_values_bulkhead_A = [0.97, 0, 0.98, 1, 1, 1, 0]   
+    T_dict_bulkhead_A = Dict(T_tuple_bulkhead_A[i] => T_values_bulkhead_A[i] for i in eachindex(T_tuple_bulkhead_A))
+
+    # Values given by transition probabilities and wild cards 
+    O_tuple_bulkhead_A = [(3,1,1), (3,9,4), (3,9,6), (5,1,1)] 
+    O_values_bulkhead_A = [0,0.25,0.75, 1]
+    O_dict_bulkhead_A = Dict(O_tuple_bulkhead_A[i] => O_values_bulkhead_A[i] for i in eachindex(O_tuple_bulkhead_A))
+
+    # 4 semicolon with wildcards
+    R_tuple_bulkhead_A = [(5,7,2,1), (5,1,4,5)]
+    R_values_bulkhead_A = [45000, -15000]
+    R_dict_bulkhead_A = Dict(R_tuple_bulkhead_A[i] => R_values_bulkhead_A[i] for i in eachindex(R_tuple_bulkhead_A))
+    bulkhead_A_dict = Dict("T" => T_dict_bulkhead_A, "O" => O_dict_bulkhead_A, "R" => R_dict_bulkhead_A)
+
+# baseball.POMDP: only due to ir being a large file. The way transitions are specified are "boring" and have been extensively tested with the previous examples
+    # Values given by transition probabilities and wild cards 
+    T_tuple_baseball = [(2,7301,7681), (6,7681,7681)]
+    T_values_baseball = [0.9, 1]
+    T_dict_baseball = Dict(T_tuple_baseball[i] => T_values_baseball[i] for i in eachindex(T_tuple_baseball))
+
+    # Values given by transition probabilities and wild cards 
+    O_tuple_baseball = [(1,218,4), (3,4017,5)] 
+    O_values_baseball = [1, 0]
+    O_dict_baseball = Dict(O_tuple_baseball[i] => O_values_baseball[i] for i in eachindex(O_tuple_baseball))
+
+    # 4 semicolon with wildcards
+    R_tuple_baseball = [(6,6144,1,1), (6,6145,4,5), (6,6145,1,1)]
+    R_values_baseball = [3,4,4]
+    R_dict_baseball = Dict(R_tuple_baseball[i] => R_values_baseball[i] for i in eachindex(R_tuple_baseball))
+    baseball_dict = Dict("T" => T_dict_baseball, "O" => O_dict_baseball, "R" => R_dict_baseball)
+
+# tiger_95.POMDP
+    # Values given by transition probabilities and wild cards 
+    T_tuple_tiger_95 = []
+    T_values_tiger_95 = []
+    T_dict_tiger_95 = Dict(T_tuple_tiger_95[i] => T_values_tiger_95[i] for i in eachindex(T_tuple_tiger_95))
+
+    # Values given by transition probabilities and wild cards 
+    O_tuple_tiger_95 = []
+    O_values_tiger_95 = []
+    O_dict_tiger_95 = Dict(O_tuple_tiger_95[i] => O_values_tiger_95[i] for i in eachindex(O_tuple_tiger_95))
+
+    # 4 semicolon with wildcards
+    R_tuple_tiger_95 = []
+    R_values_tiger_95 = []
+    R_dict_tiger_95 = Dict(R_tuple_tiger_95[i] => R_values_tiger_95[i] for i in eachindex(R_tuple_tiger_95))
+    tiger_95_dict = Dict("T" => T_dict_tiger_95, "O" => O_dict_tiger_95, "R" => R_dict_tiger_95)
+
+
+name_to_dic = Dict("mit" => mit_dict, "baseball" => baseball_dict, 
+    "tiger.95" => "tiger95_dict", "hallway" => hallway_dict, "bulkhead.A" => bulkhead_A_dict)
 individual_test = Dict(name => eval(name_to_dic[name]) for name in nn_indivual_test) 
 
 problems = ["concert", "ejs1", "ejs2", "ejs4", "ejs5", "ejs6", "ejs7"]
