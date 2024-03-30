@@ -8,7 +8,7 @@ regex_filename = r"/([^/]*?)\.[Pp][Oo][Mm][Dd][Pp]$"
 ff_pomdp, ff_gz, ff_tar_gz = save_files(false) 
 files_path = [ff_pomdp, ff_gz, ff_tar_gz...]
 all_files_path = read_pomdp_dir(files_path) 
-max_num = [50,50] # max number of states and actions of POMDP to be tested
+max_num = [50,50] # max number of states and actions of POMDPs to be tested
 
 individual_tests = set_individual_tests() 
 
