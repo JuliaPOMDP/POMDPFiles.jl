@@ -79,7 +79,9 @@ function read_alpha(filename::AbstractString)
 
     return alpha_vectors, alpha_actions
 end
-
+"""
+    Read a .pomdp file following the specfication at http://www.pomdp.org/code/pomdp-file-spec.html and returns a FilePOMDP or SFilePOMDP object that can be used within the POMDPs.jl interface.
+"""
 function read_pomdp(filename::String; output::Symbol = :SFilePOMDP)
     lines = open(readlines, filename) |> remove_comments_and_white_space 
 
@@ -92,6 +94,7 @@ function read_pomdp(filename::String; output::Symbol = :SFilePOMDP)
     dic_states = Dict(string(nn) => index for (index, nn) in enumerate(names(states))) # needed here to process the initial state
 
     # # # # Processing the initial distribution
+    # TODO: Add the parsing of start include and start exclude. Decide how we should approach this.
     initialstate = InitialStateParam()
     if "start" in keys(preamble_dict)
         initialstate_content = preamble_dict["start"] 
@@ -201,8 +204,13 @@ function read_pomdp(filename::String; output::Symbol = :SFilePOMDP)
         error("Output type invalid")
     end
 end
-
+  
 ################ Auxiliary functions ##################
+"""
+    test_if_probability(prob::Union{Vector{Float64}, Vector{Nothing}, Nothing};rtol=1e-3)
+
+    Built-in function that tests whether a vector is a probability distribution. It checks if the elements are between 0 and 1 and if the sum of the elements is approximately 1. The function returns true if the vector is a probability distribution and false otherwise.
+"""
 function test_if_probability(prob::Union{Vector{Float64}, Vector{Nothing}, Nothing};rtol=1e-3)
     if isnothing(prob) || eltype(prob) == Nothing
         return false
@@ -211,7 +219,9 @@ function test_if_probability(prob::Union{Vector{Float64}, Vector{Nothing}, Nothi
         return (between_0_1 && isapprox(sum(prob), 1; rtol=rtol)) ? true : false
     end
 end
-
+"""
+    remove_comments_and_white_space(file::Vector{String}) is used by read_pomdp to remove comments and white spaces from the file. This function allows for some standardization of process of parsing files.
+"""
 function remove_comments_and_white_space(file::Vector{String})
     processed_file = []
 
@@ -225,14 +235,18 @@ function remove_comments_and_white_space(file::Vector{String})
 
     return Vector{String}(filter(x -> !isempty(x), processed_file))
 end
-
+"""
+    convert_to_data_structure(field::String, preamble::Dict{String,String}) is used by read_pomdp to convert the information in the preamble into an intermidiate format before passing it into a ContainerNames object.
+"""
 function convert_to_data_structure(field::String, preamble::Dict{String,String}) 
     entry = preamble[field]
     entry = replace(entry, r"\"+" => "")
 
     return !isnothing(tryparse(Int64, entry)) ? parse(Int64, entry) : string.(split(entry))
 end
-
+"""
+    order_of_transition_reward_observation(file_lines::Vector{String}, start_line::Int64) is used by read_pomdp to find the order of the transition, reward, and observation matrices in the file.
+"""
 function order_of_transition_reward_observation(file_lines::Vector{String}, start_line::Int64) 
     key_field = ["O", "T", "R"]
     regex_fields = Vector{String}()
@@ -248,7 +262,9 @@ function order_of_transition_reward_observation(file_lines::Vector{String}, star
 end
 
 ######### Auxiliary functions -- PREAMBLE ###############
-
+"""
+    check_preamble_fields(preamble::String) is used by read_pomdp to check if the preamble of the file has all the necessary fields. An error is issued if one of the fields "discount", "values", "states", "actions", or "observations" is missing.
+"""
 function check_preamble_fields(preamble::String)
     # I am assuming this function is going to work on a string that contains the preamble and the first line of non-preamble content, e.g.,
     # preamble = """
@@ -285,7 +301,9 @@ function check_preamble_fields(preamble::String)
 
     return preamble_dict
 end
-
+"""
+    process_preamble(preamble::Dict{String, String}) is used by read_pomdp to process the preamble of the file and check if the fields "discount", "values", "states", "actions", and "observations" have the correct syntax. The output are the discount, values, actions, states, and observations parameters, where actions, states, and observations are converted into ContainerNames objects.
+"""
 function process_preamble(preamble::Dict{String, String})
     # checking discount syntax => it must be a float number
     discount = parse(Float64, preamble["discount"])

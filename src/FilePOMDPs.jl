@@ -1,3 +1,19 @@
+"""
+    FilePOMDP is the main data structure of the package. It is used to represent a POMDP problem from a file.
+
+        ns: number of states
+        na: number of actions
+        no: number of observations
+
+        support_initialstate: support of the initial state distribution
+        initialstate_distribution: initial state distribution
+
+        discount: discount factor
+
+        T: transition matrix
+        O: observation matrix
+        R: reward matrix
+"""
 struct FilePOMDP <: POMDP{Int, Int, Int} 
     ns::Int
     na::Int
@@ -13,9 +29,15 @@ struct FilePOMDP <: POMDP{Int, Int, Int}
     R::WildcardArray{Float64, 4}
 end
 
+"""
+    Constructors for the FilePOMDP type.
+"""
 FilePOMDP(s::Int, a::Int, o::Int, initial_state::InitialStateParam, discount::Float64, T::WildcardArray{Float64, 3}, O::WildcardArray{Float64, 3}, R::WildcardArray{Float64, 4})= FilePOMDP(s, a, o, support(initial_state), prob(initial_state), discount, T, O, R)  
 FilePOMDP(filename::String) = read_pomdp(filename; output=:FilePOMDP)
 
+"""
+        Implementing the functions required by the POMDP interface. See [POMDPs.jl](https://juliapomdp.github.io/POMDPs.jl/latest/) for more details on the interface.
+"""
 states(m::FilePOMDP) = 1:m.ns
 stateindex(m::FilePOMDP, i::Int) = (i <= m.ns) ? i : error("Querying states outside the allowable range.")
 
@@ -50,6 +72,14 @@ reward(m::FilePOMDP, s::Int, a::Int) = m.R[a,s,1,1]
 discount(m::FilePOMDP) = m.discount
 
 # Data structure with names
+"""
+    SFilePOMDP is used whenever the names of the states, actions, and observations are known. It is used to represent a POMDP problem from a file.
+
+        dic_states: dictionary with the names of the states
+        dic_actions: dictionary with the names of the actions
+        dic_obs: dictionary with the names of the observations
+        pomdp: FilePOMDP structure
+"""
 struct SFilePOMDP <: POMDP{String, String, String}
     dic_states::Dict{String, Int}
     dic_actions::Dict{String, Int}
@@ -65,7 +95,9 @@ struct SFilePOMDP <: POMDP{String, String, String}
     end
 end
 SFilePOMDP(filename::String) = read_pomdp(filename; output=:SFilePOMDP)
-
+"""
+    Implementing the functions required by the POMDP interface. See [POMDPs.jl](https://juliapomdp.github.io/POMDPs.jl/latest/) for more details on the interface.
+"""
 states(m::SFilePOMDP) = states(m.pomdp)
 stateindex(m::SFilePOMDP, key::Int) = stateindex(m.pomdp, key)
 statenames(m::SFilePOMDP) = collect(keys(m.dic_states))

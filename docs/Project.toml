@@ -1,0 +1,9 @@
+[deps]
+Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
+DocumenterTools = "35a29f4d-8980-5a13-9543-d66fff28ecb8"
+OrderedCollections = "bac558e1-5e72-5ebc-8fee-abe8a469f55d"
+POMDPTools = "7588e00f-9cae-40de-98dc-e0c70c48cdd7"
+POMDPXFiles = "c6f6ee83-58c6-5336-a19f-2c76817e1af6"
+POMDPs = "a93abf59-7444-517b-a68a-c42f96afdd7d"
+Reexport = "189a3867-3050-52da-a836-e630ba90ab69"
+WildcardArrays = "05d16eb0-506c-4fac-9187-f7ce7e253b09"
