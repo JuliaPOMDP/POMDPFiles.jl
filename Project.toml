@@ -11,7 +11,6 @@ POMDPXFiles = "c6f6ee83-58c6-5336-a19f-2c76817e1af6"
 POMDPs = "a93abf59-7444-517b-a68a-c42f96afdd7d"
 Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
 Reexport = "189a3867-3050-52da-a836-e630ba90ab69"
-WildcardArrays = "05d16eb0-506c-4fac-9187-f7ce7e253b09"
 
 [compat]
 POMDPTools = "0.1.4"
