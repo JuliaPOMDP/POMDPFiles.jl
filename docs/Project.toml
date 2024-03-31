@@ -1,6 +1,7 @@
 [deps]
 Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
 DocumenterTools = "35a29f4d-8980-5a13-9543-d66fff28ecb8"
+HTTP = "cd3eb016-35fb-5094-929b-558a96fad6f3"
 OrderedCollections = "bac558e1-5e72-5ebc-8fee-abe8a469f55d"
 POMDPTools = "7588e00f-9cae-40de-98dc-e0c70c48cdd7"
 POMDPXFiles = "c6f6ee83-58c6-5336-a19f-2c76817e1af6"
