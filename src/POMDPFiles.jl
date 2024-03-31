@@ -4,7 +4,6 @@ using Reexport
 using POMDPs
 using POMDPTools
 using Printf
-using Pkg
 using WildcardArrays
 using WildcardArrays: WildcardArray
 using OrderedCollections, LinearAlgebra
