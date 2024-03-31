@@ -20,7 +20,7 @@ jobs:
           ssh-keyscan github.com >> ~/.ssh/known_hosts
       - name: Adding WildcardArrays
         run: | 
-          julia --project -e 'using Pkg; Pkg.add(PackageSpec(url="git@github.com:sisl/WildcardArrays.jl.git")); Pkg.instantiate()'
+          julia --project -e 'using Pkg; Pkg.add(PackageSpec(url="git@github.com:licioromao/WildcardArrays.jl.git")); Pkg.instantiate()'
       - uses: julia-actions/julia-buildpkg@v1
       - uses: julia-actions/julia-runtest@v1
       - uses: julia-actions/julia-processcoverage@v1
