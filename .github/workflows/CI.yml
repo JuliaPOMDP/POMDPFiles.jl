@@ -13,14 +13,9 @@ jobs:
           version: '1'
           arch: x64
       - name: Set up SSH
-        run: |
-          mkdir -p ~/.ssh  
-          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
-          chmod 600 ~/.ssh/id_rsa
-          echo "$(cat ~/.ssh/id_rsa)"
-          eval $(ssh-agent -s)
-          ssh-add ~/.ssh/id_rsa
-          ssh-keyscan github.com >> ~/.ssh/known_hosts
+        uses: webfactory/ssh-agent@v0.5.3
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }} 
       - name: Adding WildcardArrays
         run: | 
           julia --project -e 'using Pkg; Pkg.add(PackageSpec(url="git@github.com:licioromao/WildcardArrays.jl.git")); Pkg.instantiate()'
