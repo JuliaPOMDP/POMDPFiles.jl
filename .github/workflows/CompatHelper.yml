@@ -24,3 +24,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           COMPATHELPER_PRIV: ${{ secrets.DOCUMENTER_KEY }}
           # COMPATHELPER_PRIV: ${{ secrets.COMPATHELPER_PRIV }}
+      - name: Adding WildcardArrays
+        run: julia --project -e 'using Pkg; Pkg.add(PackageSpec(url="git@github.com:sisl/WildcardArrays.jl.git")) Pkg.instantiate()'
+        
