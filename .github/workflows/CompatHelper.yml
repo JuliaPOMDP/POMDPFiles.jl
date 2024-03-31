@@ -7,8 +7,6 @@ jobs:
   CompatHelper:
     runs-on: ubuntu-latest
     steps:
-      - name: Adding WildcardArrays
-        run: julia --project -e 'using Pkg; Pkg.add(PackageSpec(url="git@github.com:sisl/WildcardArrays.jl.git")) Pkg.instantiate()'
       - name: "Install CompatHelper"
         run: |
           import Pkg
