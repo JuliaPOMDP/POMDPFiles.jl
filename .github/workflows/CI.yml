@@ -28,6 +28,3 @@ jobs:
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           slug: licioromao/POMDPFiles.jl
-          fail_ci_if_error: true # optional (default = false)
-          files: ./coverage1.xml,./coverage2.xml # optional
-          flags: unittests # optional
