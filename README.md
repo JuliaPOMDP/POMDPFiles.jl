@@ -1,6 +1,6 @@
 # POMDPFiles
 
-[![Build Status](https://github.com/licioromao/POMDPFiles.jl/actions/workflows/CI.yml/bagde.svg)](https://github.com/licioromao/POMDPFiles.jl/actions/workflows/CI.yml/)
+<!-- [![Build Status](https://github.com/licioromao/POMDPFiles.jl/actions/workflows/CI.yml/bagde.svg)](https://github.com/licioromao/POMDPFiles.jl/actions/workflows/CI.yml/) -->
 
 This package constitutes the interface between the [POMDPs.jl](https://github.com/JuliaPOMDP/POMDPs.jl) package and the file format .pomdp defined in [POMDP.org](https://www.pomdp.org/code/pomdp-file-spec.html).
 
