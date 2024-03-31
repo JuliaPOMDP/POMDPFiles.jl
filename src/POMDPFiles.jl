@@ -1,5 +1,7 @@
 module POMDPFiles
 
+# TODO: Need to talk to Mykel how to make get_index more efficient. See the example in script-1.jl
+
 using Reexport
 using POMDPs
 using POMDPTools
