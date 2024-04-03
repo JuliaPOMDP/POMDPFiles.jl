@@ -20,7 +20,7 @@ for file_path in all_files_path
 
     if !isnothing(ff_name) && !(ff_name in problems) 
         @testset "Testing file: $(ff_name)" begin
-            pomdp_read = SFilePOMDP(file_path)
+            pomdp_read = SWildcardArrayPOMDP(file_path)
 
             if ff_name in nn_individual_tests 
                 for key in keys(individual_tests[ff_name])
@@ -39,8 +39,8 @@ for file_path in all_files_path
             end
 
             if ff_name in ["baseball"]
-                vec_states = sample(states(pomdp_read), 4, replace=false) 
-                vec_actions = sample(actions(pomdp_read), 4, replace=false)
+                vec_states = sample(states(pomdp_read), 100, replace=false) 
+                vec_actions = sample(actions(pomdp_read), 6, replace=false)
             elseif ff_name in ["aloha.30"]
                 vec_states = sample(states(pomdp_read), Int(ceil(0.3*pomdp_read.pomdp.ns)), replace=false) 
                 vec_actions = sample(actions(pomdp_read), Int(ceil(0.3*pomdp_read.pomdp.na)), replace=false) 

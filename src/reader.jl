@@ -82,7 +82,7 @@ end
 """
     Read a .pomdp file following the specfication at http://www.pomdp.org/code/pomdp-file-spec.html and returns a FilePOMDP or SFilePOMDP object that can be used within the POMDPs.jl interface.
 """
-function read_pomdp(filename::String; output::Symbol = :SFilePOMDP)
+function read_pomdp(filename::String; output::Symbol = :SWildcardArrayPOMDP)
     lines = open(readlines, filename) |> remove_comments_and_white_space 
 
     # Getting info from preamble
@@ -94,52 +94,79 @@ function read_pomdp(filename::String; output::Symbol = :SFilePOMDP)
     dic_states = Dict(string(nn) => index for (index, nn) in enumerate(names(states))) # needed here to process the initial state
 
     # # # # Processing the initial distribution
-    # TODO: Add the parsing of start include and start exclude. Decide how we should approach this.
+    init_state_tuple = Dict((kk,vv) for (kk, vv) in preamble_dict if kk in ["start", "start include", "start exclude"])
+    sorted_keys = sort(collect(init_state_tuple), by=x->x[2].priority)
     initialstate = InitialStateParam()
-    if "start" in keys(preamble_dict)
-        initialstate_content = preamble_dict["start"] 
 
-        if isequal(initialstate_content, "uniform")
-            initialstate.support_of_distribution = Set([i for i in Base.OneTo(number(states))])
-            initialstate.value_of_distribution = (1/number(states))*ones(number(states))
-            initialstate.type_of_distribution = "uniform"
-            initialstate.number = number(states)
+    for (kk,vv) in sorted_keys 
+        initialstate_content = vv.value
+        types = [Float64, Int]
+        tmp_initialstate_content = map(x->tryparse.(x, string.(split(initialstate_content))), types)
 
-        else
-            types = [Float64, Int]
-            tmp_initialstate_content = map(x->tryparse.(x, string.(split(initialstate_content))), types)
-
-            # Either a vector suming to one
-            if all(x -> !isnothing(x), tmp_initialstate_content[1]) # or a vector of floats 
-                @assert test_if_probability(tmp_initialstate_content[1]) 
-
-                # Saving content on InitialStateParam
-                initialstate.value_of_distribution = tmp_initialstate_content[1]
-                initialstate.support_of_distribution = Set(findall(x -> x > 0, initialstate.value_of_distribution))
-                initialstate.type_of_distribution = "general distribution"
-                initialstate.number = number(states)    
-
-            elseif all(x -> !isnothing(x), tmp_initialstate_content[2]) # or a vector of integers 
-                @assert (all(x -> x >= 1 && x <= number(states), tmp_initialstate_content[2])) 
-
-                # Saving content on InitialStateParam
-                initialstate.support_of_distribution = Set(tmp_initialstate_content[2])
-                initialstate.value_of_distribution = vec((1/length(initialstate.support_of_distribution))*sum(Diagonal(ones(Float64, number(states)))[:, collect(initialstate.support_of_distribution)], dims=2))
-                initialstate.type_of_distribution = "uniform"
-                initialstate.number = number(states)
-
-            elseif all(x-> x in names(states), string.(split(initialstate_content))) # or a vector of names
-                # Saving content on InitialStateParam
-                init_state = map(x -> dic_states[x], string.(split(initialstate_content)))
-                initialstate.support_of_distribution = Set(init_state)
-                initialstate.value_of_distribution = vec((1/length(initialstate.support_of_distribution))*sum(Diagonal(ones(Float64, number(states)))[:, collect(initialstate.support_of_distribution)], dims=2))
+        if isequal(kk, "start")
+            if isequal(initialstate_content, "uniform")
+                initialstate.support_of_distribution = Set([i for i in Base.OneTo(number(states))])
+                initialstate.value_of_distribution = (1/number(states))*ones(number(states))
                 initialstate.type_of_distribution = "uniform"
                 initialstate.number = number(states)
 
             else
-                error("Unable to parse the initial condition.")
+                # Either a vector suming to one
+                initialstate.number = number(states)    
+                if all(x -> !isnothing(x), tmp_initialstate_content[1]) # or a vector of floats 
+                    @assert test_if_probability(tmp_initialstate_content[1]) 
+
+                    # Saving content on InitialStateParam
+                    initialstate.value_of_distribution = tmp_initialstate_content[1]
+                    initialstate.support_of_distribution = Set(findall(x -> x > 0, initialstate.value_of_distribution))
+                    initialstate.type_of_distribution = "general distribution"
+
+                elseif all(x -> !isnothing(x), tmp_initialstate_content[2]) # or a vector of integers 
+                    @assert (all(x -> x >= 1 && x <= number(states), tmp_initialstate_content[2])) 
+
+                    # Saving content on InitialStateParam
+                    initialstate.support_of_distribution = Set(tmp_initialstate_content[2])
+                    initialstate.value_of_distribution = vec((1/length(initialstate.support_of_distribution))*sum(Diagonal(ones(Float64, number(states)))[:, collect(initialstate.support_of_distribution)], dims=2))
+                    initialstate.type_of_distribution = "uniform"
+
+                elseif all(x-> x in names(states), string.(split(initialstate_content))) # or a vector of names
+                    # Saving content on InitialStateParam
+                    init_state = map(x -> dic_states[x], string.(split(initialstate_content)))
+                    initialstate.support_of_distribution = Set(init_state)
+                    initialstate.value_of_distribution = vec((1/length(initialstate.support_of_distribution))*sum(Diagonal(ones(Float64, number(states)))[:, collect(initialstate.support_of_distribution)], dims=2))
+                    initialstate.type_of_distribution = "uniform"
+
+                else
+                    error("Unable to parse the initial condition.")
+                end
+            end
+        elseif isequal(kk, "start include")
+            if all(x -> !isnothing(x), tmp_initialstate_content[2]) # or a vector of integers 
+                initialstate.support_of_distribution = union(initialstate.support_of_distribution, Set(tmp_initialstate_content[2])) # union the sets
+            elseif all(x-> x in names(states), string.(split(initialstate_content))) # or a vector of names
+                init_state = map(x -> dic_states[x], string.(split(initialstate_content)))
+                initialstate.support_of_distribution = union(initialstate.support_of_distribution, Set(init_state))
             end
 
+            initialstate.value_of_distribution = vec((1/length(initialstate.support_of_distribution))*sum(Diagonal(ones(Float64, number(states)))[:, collect(initialstate.support_of_distribution)], dims=2))
+            initialstate.type_of_distribution = "uniform"
+            initialstate.number = number(states)
+
+        elseif isequal(kk, "start exclude")
+            if all(x -> !isnothing(x), tmp_initialstate_content[2]) # or a vector of integers 
+                initialstate.support_of_distribution = setdiff(initialstate.support_of_distribution, Set(tmp_initialstate_content[2]))
+            elseif all(x-> x in names(states), string.(split(initialstate_content))) # or a vector of names
+                init_state = map(x -> dic_states[x], string.(split(initialstate_content)))
+                initialstate.support_of_distribution = setdiff(initialstate.support_of_distribution, Set(init_state))
+            end
+
+            if !isempty(initialstate.support_of_distribution)
+                initialstate.value_of_distribution = vec((1/length(initialstate.support_of_distribution))*sum(Diagonal(ones(Float64, number(states)))[:, collect(initialstate.support_of_distribution)], dims=2))
+            end
+            initialstate.type_of_distribution = "uniform"
+            initialstate.number = number(states)
+        else
+            error("Unable to parse the initial condition.")
         end
     end
 
@@ -178,28 +205,28 @@ function read_pomdp(filename::String; output::Symbol = :SFilePOMDP)
     # Processing observation probability
     str_trans = join(files_transition, "\n")
     vv = [names(actions), names(states), names(states)]
-    wc_trans = WildcardArrays.parse(str_trans, vv)
+    wc_trans = WildcardArray(str_trans, vv)
 
     # # Processing observation probability
     str_obs = join(files_obs, "\n")
     vv = [names(actions), names(states), names(observations)]
-    wc_obs = WildcardArrays.parse(str_obs, vv)
+    wc_obs = WildcardArray(str_obs, vv)
     
     # # Processing observation probability
     str_values = join(files_values, "\n")
     vv = [names(actions), names(states), names(states), names(observations)]
-    wc_values = WildcardArrays.parse(str_values, vv)
+    wc_values = WildcardArray(str_values, vv)
     
-    pomdp_struc = FilePOMDP(number(states), number(actions), number(observations), initialstate, discount[1], wc_trans, wc_obs, wc_values)
+    pomdp_struc = WildcardArrayPOMDP(number(states), number(actions), number(observations), initialstate, discount[1], wc_trans, wc_obs, wc_values)
 
-    if output == :FilePOMDP
+    if output == :WildcardArrayPOMDP
         return pomdp_struc
 
-    elseif output == :SFilePOMDP
+    elseif output == :SWildcardArrayPOMDP
         dic_action = Dict(string(nn) => index for (index, nn) in enumerate(names(actions)))
         dic_obs = Dict(string(nn) => index for (index, nn) in enumerate(names(observations)))
 
-        return SFilePOMDP(dic_states, dic_action, dic_obs, pomdp_struc)
+        return SWildcardArrayPOMDP(dic_states, dic_action, dic_obs, pomdp_struc)
     else
         error("Output type invalid")
     end
@@ -238,7 +265,7 @@ end
 """
     convert_to_data_structure(field::String, preamble::Dict{String,String}) is used by read_pomdp to convert the information in the preamble into an intermidiate format before passing it into a ContainerNames object.
 """
-function convert_to_data_structure(field::String, preamble::Dict{String,String}) 
+function convert_to_data_structure(field::String, preamble::Dict{String,Any}) 
     entry = preamble[field]
     entry = replace(entry, r"\"+" => "")
 
@@ -266,16 +293,10 @@ end
     check_preamble_fields(preamble::String) is used by read_pomdp to check if the preamble of the file has all the necessary fields. An error is issued if one of the fields "discount", "values", "states", "actions", or "observations" is missing.
 """
 function check_preamble_fields(preamble::String)
-    # I am assuming this function is going to work on a string that contains the preamble and the first line of non-preamble content, e.g.,
-    # preamble = """
-    # discount: 0.95\nvalues: reward\nstates: 11\nactions: N0 S0 E0 W0\nobservations: 7\nstart: 0.100000 0.100000 0.100000 0.100000 0.100000 0.100000 0.100000 0.100000 0.100000 0.100000 0.0 
-    # T: 0 : 0 : 0 0.4586 
-    # """ 
-
     key_fields = ["discount", "values", "states", "actions", "observations"]
     preamble_vec = string.(split(preamble, "\n"))
 
-    preamble_dict = Dict{String, String}() 
+    preamble_dict = Dict{String, Any}() 
     field_dict = Dict{String, Int64}()
 
     # Checking whether the preamble has all the necessary fields
@@ -292,11 +313,15 @@ function check_preamble_fields(preamble::String)
 
     regex_preamble = r"\s*(.*)\s*:\s+([\d\D]*?)(?=(.*:)|$)"
     
-    for m in eachmatch(regex_preamble, preamble)
+    for (ii,m) in enumerate(eachmatch(regex_preamble, preamble))
         field = strip(m.captures[1], ['\n', '\r', ' ', '\"'])
         content = strip(m.captures[end-1], ['\n', '\r', ' ', '\"'])
 
-        preamble_dict[field] = content
+        if field in ["start", "start include", "start exclude"]
+            preamble_dict[field] = WildcardArrays.PriorityValue(ii, string(content))
+        else
+            preamble_dict[field] = content
+        end
     end
 
     return preamble_dict
@@ -304,7 +329,7 @@ end
 """
     process_preamble(preamble::Dict{String, String}) is used by read_pomdp to process the preamble of the file and check if the fields "discount", "values", "states", "actions", and "observations" have the correct syntax. The output are the discount, values, actions, states, and observations parameters, where actions, states, and observations are converted into ContainerNames objects.
 """
-function process_preamble(preamble::Dict{String, String})
+function process_preamble(preamble::Dict{String, Any})
     # checking discount syntax => it must be a float number
     discount = parse(Float64, preamble["discount"])
     if ~(0 <= discount <= 1) 

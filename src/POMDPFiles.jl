@@ -1,14 +1,12 @@
 module POMDPFiles
 
-# TODO: Need to talk to Mykel how to make get_index more efficient. See the example in script-1.jl
-
 using Reexport
 using POMDPs
 using POMDPTools
 using Printf
 using WildcardArrays
 using WildcardArrays: WildcardArray
-using OrderedCollections, LinearAlgebra
+using LinearAlgebra
 
 @reexport using POMDPXFiles # for POMDPAlphas
 
@@ -16,8 +14,8 @@ import POMDPs: transition, reward, discount, observation, states, stateindex, ac
 
 include("types.jl")
 
-export FilePOMDP, SFilePOMDP, statenames, actionnames, obsnames 
-include("FilePOMDPs.jl")
+export WildcardArrayPOMDP, SWildcardArrayPOMDP, statenames, actionnames, obsnames 
+include("WildcardArrayPOMDPs.jl")
 
 export read_alpha, read_pomdp 
 include("reader.jl")
