@@ -24,7 +24,7 @@ tmp_file_name = tmp_dir * "/paint.95.POMDP"
 
 HTTP.download(url, tmp_file_name)
 
-pomdp = SWildcardArray(tmp_file_name)
+pomdp = SWildcardArrayPOMDP(tmp_file_name)
 
 initialstate(pomdp)
 actions(pomdp)
