@@ -13,4 +13,4 @@ WildcardArrays = "05d16eb0-506c-4fac-9187-f7ce7e253b09"
 
 [compat]
 POMDPFiles = "0.3.0"
-WildcardArrays = "1.0.0"
+WildcardArrays = "0.1.0"
