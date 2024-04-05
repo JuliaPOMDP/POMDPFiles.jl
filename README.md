@@ -1,4 +1,6 @@
 # POMDPFiles
+[![Build Status](https://github.com/POMDPFiles.jl/actions/workflows/CI.yml/badge.svg?branch=main)](https://github.com/POMDPFiles.jl/actions/workflows/CI.yml?query=branch%3Amain)
+[![codecov](https://codecov.io/gh/licioromao/POMDPFiles.jl/branch/main/graph/badge.svg?token=btTBnBTQyw)](https://codecov.io/gh/licioromao/POMDPFiles.jl)
 
 <!-- [![Build Status](https://github.com/licioromao/POMDPFiles.jl/actions/workflows/CI.yml/bagde.svg)](https://github.com/licioromao/POMDPFiles.jl/actions/workflows/CI.yml/) -->
 
