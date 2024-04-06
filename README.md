@@ -32,7 +32,7 @@ obsnames(m::SWildcardArrayPOMDP)
 
 To deal with pomdp specifications where states, actions, and observations are specified with strings, i.e., `ss = ["warm", "very-warm"], aa = ["north", "west", "east", "west"]`, one may use the SWildcardArrayPOMDP type. More details on the differences between these two types are presented below. Three methods, `statenames`, `actionnames`, and `obsnames`, are defined to retrieve the names associated with the corresponding field of an `SWildcardArrayPOMDP` type.  
 
-**Warning:** Functions `statenames`, `actionnames`, `obsnames` are not implemented for a `WildcardArrayPOMDP` type. 
+> **Warning:** Functions `statenames`, `actionnames`, `obsnames` are not implemented for a `WildcardArrayPOMDP` type. 
 
 ```julia
 mutable struct InitialStateParam
@@ -74,9 +74,9 @@ Some of the examples in [POMDP.org](https://www.pomdp.org/examples), for instanc
 ```julia
 using HTTP, POMDPs, POMDPFiles
 
-url = "https://www.pomdp.org/examples/paint.95.POMDP"
+url = "https://www.pomdp.org/examples/mini-hall2.POMDP"
 tmp_dir = mktempdir()
-tmp_file_name = joinpath(tmp_dir, "paint.95.POMDP")
+tmp_file_name = joinpath(tmp_dir, "mini-hall2.POMDP")
 
 HTTP.download(url, tmp_file_name)
 
