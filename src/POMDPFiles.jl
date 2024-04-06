@@ -12,6 +12,7 @@ using LinearAlgebra
 
 import POMDPs: transition, reward, discount, observation, states, stateindex, actions, actionindex, observations, obsindex, initialstate 
 
+export InitialStateParam
 include("types.jl")
 
 export WildcardArrayPOMDP, SWildcardArrayPOMDP, statenames, actionnames, obsnames 
