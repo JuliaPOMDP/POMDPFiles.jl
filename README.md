@@ -83,4 +83,4 @@ HTTP.download(url, tmp_file_name)
 pomdp = WildcardArrayPOMDP(tmp_file_name)
 ```
 
-Using `SWildcardArrayPOMDP` in the previous would allow us to refer to states, actions, and observations by means of a $0$-based indexing.
+Using `SWildcardArrayPOMDP` in the previous example would allow us to refer to states, actions, and observations by means of a $0$-based indexing.
