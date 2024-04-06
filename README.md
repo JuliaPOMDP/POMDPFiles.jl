@@ -51,7 +51,7 @@ This is interface used to define the initial distribution of `WildcardArrayPOMDP
 <!-- TODO: Try to add a more complex example here -->
 ## Quick example
 
-In the example below we download the *paint.95.POMDP* file from [POMDP.org](https://www.pomdp.org/examples/paint.95.POMDP) and parse the content into a *SFilePOMDP* variable type defined in this package. We then illustrate a few functionalities from *POMDPs.jl*.
+In the example below we download the *paint.95.POMDP* file from [POMDP.org](https://www.pomdp.org/examples/paint.95.POMDP) and parse the content into a *SWildcardArrayPOMDP* variable type defined in this package. We then illustrate a few functionalities from *POMDPs.jl*.
 
 ```julia
 using HTTP, POMDPs, POMDPFiles 
