@@ -76,7 +76,7 @@ mktempdir() do tmp_dir
     tmp_file_name = joinpath(tmp_dir, "mini-hall2.POMDP")
     HTTP.download(url, tmp_file_name)
 
-    pomdp = SWildcardArrayPOMDP(tmp_file_name)
+    pomdp = WildcardArrayPOMDP(tmp_file_name)
 
     initialstate(pomdp)
 end
