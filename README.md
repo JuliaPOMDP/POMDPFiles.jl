@@ -66,7 +66,7 @@ mktempdir() do tmp_dir
     states(pomdp)
 end
 ```
-Some of the examples in [POMDP.org](https://www.pomdp.org/examples), for instance, the `mini-hall2`, specifies a POMDP without associating names with the states, actions, and observations. In these cases, one may use the `WildcardArrayPOMDP` type as described in the example below. 
+Some of the examples in [POMDP.org](https://www.pomdp.org/examples), for instance, the `mini-hall2`, specifies a POMDP without associating names with states, actions, and observations. In these cases, one may use the `WildcardArrayPOMDP` type as described in the example below. 
 
 ```julia
 using HTTP, POMDPs, POMDPFiles
