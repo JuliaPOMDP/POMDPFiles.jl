@@ -54,33 +54,38 @@ This is interface used to define the initial distribution of `WildcardArrayPOMDP
 In the example below we download the *paint.95.POMDP* file from [POMDP.org](https://www.pomdp.org/examples/paint.95.POMDP) and parse the content into a `SWildcardArrayPOMDP` variable type defined in this package. We then illustrate a few functionalities from *POMDPs.jl*.
 
 ```julia
-using HTTP, POMDPs, POMDPFiles 
+using HTTP, POMDPs, POMDPFiles
 
-url = "https://www.pomdp.org/examples/paint.95.POMDP"
-tmp_dir = mktempdir()
-tmp_file_name = joinpath(tmp_dir, "paint.95.POMDP")
+mktempdir() do tmp_dir 
+    url = "https://www.pomdp.org/examples/paint.95.POMDP"
+    tmp_file_name = joinpath(tmp_dir, "paint.95.POMDP")
+    HTTP.download(url, tmp_file_name)
 
-HTTP.download(url, tmp_file_name)
+    pomdp = SWildcardArrayPOMDP(tmp_file_name)
 
-pomdp = SWildcardArrayPOMDP(tmp_file_name)
-
-initialstate(pomdp)
-actions(pomdp)
-observations(pomdp)
-states(pomdp)
+    initialstate(pomdp)
+    actions(pomdp)
+    observations(pomdp)
+    states(pomdp)
+end
 ```
 Some of the examples in [POMDP.org](https://www.pomdp.org/examples), for instance, the `mini-hall2`, specifies a POMDP without associating names with the states, actions, and observations. In these cases, one may use the `WildcardArrayPOMDP` type as described in the example below. 
 
 ```julia
 using HTTP, POMDPs, POMDPFiles
 
-url = "https://www.pomdp.org/examples/mini-hall2.POMDP"
-tmp_dir = mktempdir()
-tmp_file_name = joinpath(tmp_dir, "mini-hall2.POMDP")
+mktempdir() do tmp_dir 
+    url = "https://www.pomdp.org/examples/mini-hall2.POMDP"
+    tmp_file_name = joinpath(tmp_dir, "mini-hall2.POMDP")
+    HTTP.download(url, tmp_file_name)
 
-HTTP.download(url, tmp_file_name)
+    pomdp = SWildcardArrayPOMDP(tmp_file_name)
 
-pomdp = WildcardArrayPOMDP(tmp_file_name)
+    initialstate(pomdp)
+    actions(pomdp)
+    observations(pomdp)
+    states(pomdp)
+end
 ```
 
 Using `SWildcardArrayPOMDP` in the previous example would allow us to refer to states, actions, and observations by means of a $0$-based indexing.
