@@ -63,9 +63,6 @@ mktempdir() do tmp_dir
 
     pomdp = SWildcardArrayPOMDP(tmp_file_name)
 
-    initialstate(pomdp)
-    actions(pomdp)
-    observations(pomdp)
     states(pomdp)
 end
 ```
@@ -82,9 +79,6 @@ mktempdir() do tmp_dir
     pomdp = SWildcardArrayPOMDP(tmp_file_name)
 
     initialstate(pomdp)
-    actions(pomdp)
-    observations(pomdp)
-    states(pomdp)
 end
 ```
 
