@@ -1,7 +1,7 @@
 name = "POMDPFiles"
 uuid = "9cf5b727-2e06-5671-8c87-8c6b0f729d5d"
 repo = "https://github.com/JuliaPOMDP/POMDPFiles.jl"
-version = "0.2.4"
+version = "0.2.5"
 
 [deps]
 POMDPModels = "355abbd5-f08e-5560-ac9e-8b5f2592a0ca"
@@ -12,11 +12,11 @@ Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
 Reexport = "189a3867-3050-52da-a836-e630ba90ab69"
 
 [compat]
-POMDPTools = "0.1.4"
-POMDPXFiles = "0.2"
-POMDPs = "0.9"
+POMDPTools = "0.1.4, 1"
+POMDPXFiles = "0.2.3, 0.3"
+POMDPs = "0.9, 1"
 Reexport = "0.2, 1"
-julia = "1"
+julia = "1.6"
 
 [extras]
 Downloads = "f43a241f-c20a-4ad4-852c-f6b1247861c6"
